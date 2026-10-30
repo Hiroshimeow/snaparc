@@ -97,6 +97,34 @@ class ScreenshotChatServerTests(unittest.TestCase):
         with urllib.request.urlopen(request, timeout=2) as response:
             return json.loads(response.read().decode("utf-8"))
 
+    def test_server_refuses_non_loopback_binding(self):
+        with self.assertRaises(ValueError):
+            ScreenshotChatServer(self.controller, host="0.0.0.0", port=0)
+        with self.assertRaises(ValueError):
+            ScreenshotChatServer(self.controller, host="192.168.1.3", port=0)
+
+    def test_cross_origin_post_is_denied_even_with_valid_session_token(self):
+        req = urllib.request.Request(
+            f"{self.server.base_url}/set_mode",
+            data=b'{"mode":"chat"}',
+            headers={
+                "Content-Type": "application/json",
+                "X-STC-Token": self.server.token,
+                "Origin": "https://untrusted.example",
+            },
+            method="POST",
+        )
+        with self.assertRaises(urllib.error.HTTPError) as caught:
+            urllib.request.urlopen(req, timeout=2)
+        self.assertEqual(caught.exception.code, 403)
+
+    def test_query_token_is_not_valid_for_state_endpoint(self):
+        with self.assertRaises(urllib.error.HTTPError) as caught:
+            urllib.request.urlopen(
+                f"{self.server.base_url}/state?t={self.server.token}", timeout=2
+            )
+        self.assertEqual(caught.exception.code, 403)
+
     def test_state_endpoint_returns_current_session_payload(self):
         payload = self._get_json("/state")
 

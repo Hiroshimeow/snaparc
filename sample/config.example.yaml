@@ -1,4 +1,7 @@
 {
+  "privacy": {
+    "allow_cloud_upload": false
+  },
   "models": {
     "providers": {
       "cliproxy": {
@@ -52,5 +55,8 @@
   "screenshot_chat": {
     "enabled": true,
     "pi_primary_mode": true
+  },
+  "radial_plugins": {
+    "allow_user_plugins": false
   }
 }

@@ -75,6 +75,29 @@ class ScreenshotChatProcessManagerTests(unittest.TestCase):
         self.assertNotIn("s3cret-token", logged)
         self.assertNotIn("--token=", logged)
 
+    def test_frozen_build_uses_snaparc_executable_child_mode(self):
+        import sys
+        controller = FakeController()
+        manager = ScreenshotChatProcessManager(controller)
+        manager.server = mock.Mock(base_url="http://127.0.0.1:1234", token="session-test")
+        captured = {}
+
+        def fake_popen(command, **kwargs):
+            captured["command"] = list(command)
+            captured["env"] = dict(kwargs["env"])
+            Path(command[command.index("--ready-file") + 1]).write_text("ready", encoding="utf-8")
+            return FakeProcess()
+
+        with mock.patch.object(sys, "frozen", True, create=True), \
+             mock.patch("src.gui.screenshot_chat.process_manager.subprocess.Popen", side_effect=fake_popen), \
+             mock.patch("builtins.print"):
+            manager._spawn_child()
+        self.assertEqual(captured["command"][0], sys.executable)
+        self.assertEqual(captured["command"][1], "--snaparc-webview-child")
+        self.assertNotIn("-m", captured["command"])
+        self.assertEqual(captured["env"]["SNAPARC_CHAT_SESSION_TOKEN"], "session-test")
+        self.assertNotIn("session-test", " ".join(captured["command"]))
+
     def test_dash_prefixed_token_survives_child_argument_parsing(self):
         from src.gui.screenshot_chat import webview_app
 
@@ -99,7 +122,7 @@ class ScreenshotChatProcessManagerTests(unittest.TestCase):
         self.assertEqual(command[2], "src.gui.screenshot_chat.webview_app")
         with mock.patch.dict("os.environ", captured["env"]), mock.patch("sys.argv", ["webview_app", *command[3:]]):
             args = webview_app._parse_args()
-        self.assertEqual(args.token, token)
+        self.assertEqual(captured["env"]["SNAPARC_CHAT_SESSION_TOKEN"], token)
         self.assertFalse(any("--token=" in arg for arg in command))
         logged = " ".join(str(call.args[0]) for call in printed.call_args_list if call.args)
         self.assertNotIn(token, logged)

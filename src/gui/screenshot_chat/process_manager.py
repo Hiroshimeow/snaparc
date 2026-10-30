@@ -11,8 +11,8 @@ import time
 from src.gui.screenshot_chat.server import ScreenshotChatServer
 
 LOW_MEMORY_WEBVIEW2_ARGS = (
-    "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection,Translate,"
-    "BackForwardCache,RendererCodeIntegrity,SpareRendererForSitePerProcess "
+    "--disable-features=msWebOOUI,msPdfOOUI,Translate,"
+    "BackForwardCache,SpareRendererForSitePerProcess "
     "--process-per-site --disk-cache-size=16777216 --media-cache-size=16777216 "
     "--js-flags=--max-old-space-size=192"
 )
@@ -156,11 +156,11 @@ class ScreenshotChatProcessManager:
         gui = str(runtime.get("gui") or "edgechromium")
         ready_file = Path(tempfile.gettempdir()) / f"screenshot_chat_ready_{os.getpid()}_{int(time.time() * 1000)}.tmp"
         log_file = Path(tempfile.gettempdir()) / f"screenshot_chat_startup_{os.getpid()}_{int(time.time() * 1000)}.log"
-        child_python = self._resolve_child_python()
+        frozen = bool(getattr(sys, "frozen", False))
+        child_python = sys.executable if frozen else self._resolve_child_python()
         command = [
             child_python,
-            "-m",
-            "src.gui.screenshot_chat.webview_app",
+            *(["--snaparc-webview-child"] if frozen else ["-m", "src.gui.screenshot_chat.webview_app"]),
             "--server-url",
             self.server.base_url,
             "--parent-pid",

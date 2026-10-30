@@ -30,7 +30,8 @@ class ScreenshotChatWebViewWindowSourceTests(unittest.TestCase):
     def test_child_loads_server_page_same_origin_with_launch_token(self):
         self.assertIn("url=page_url", APP_SOURCE)
         self.assertNotIn("html=", APP_SOURCE)
-        self.assertIn("/?t={args.token}", APP_SOURCE)
+        self.assertIn("/?t={token}", APP_SOURCE)
+        self.assertNotIn("args.token", APP_SOURCE)
         self.assertIn('"X-STC-Token"', APP_SOURCE)
         self.assertIn("/ui", APP_SOURCE)
         self.assertNotIn("/state", APP_SOURCE)

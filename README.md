@@ -41,6 +41,18 @@ uv run python main.py --open-chat
 
 Use the commands above as the documented launch path. Local configuration is stored in `config.yaml`; runtime state belongs in `data/`. Neither should be committed. Example configuration files are available under `sample/`; review them before use and supply credentials locally.
 
+## Privacy and AI provider consent
+
+Cloud AI requests are disabled by default. To explicitly permit transmitting
+selected screenshots, text or audio to a configured provider, set
+privacy.allow_cloud_upload: true in your local, Git-ignored config.yaml
+(or the equivalent JSON object). Understand your configured provider's privacy
+and billing terms before opting in. Disabling it again prevents subsequent
+provider dispatch through LLMService. Third-party Pi workflows or plugins
+have separate trust implications; run only plugins and tools you approve.
+Unbundled scripts are disabled by default; opt in only when you trust them
+by setting radial_plugins.allow_user_plugins to true in local config.yaml.
+
 ## Runtime notes
 
 The optional Screenshot Chat workflow currently uses the Python JSONL bridge in `src/agents/pi_rpc_bridge.py`, with an OpenAI-compatible completion loop and workspace tools. Pi-related names and CLI discovery helpers do not establish an external Node Pi SDK integration.
@@ -49,7 +61,7 @@ Provider-dependent features need separate end-to-end checks. A queued action, an
 
 ## Release status
 
-SnapArc v0.0.1 is free pre-alpha source, not a production release. Before publishing, complete RELEASE-READINESS.md, review SECURITY.md and validate every enabled plugin. Plugins currently execute as trusted local code. The legal redistribution license is undecided pending review. A public GitHub repository is not a Windows installation artifact.
+SnapArc v0.0.1 is free pre-alpha source, not a production release. Before publishing, complete RELEASE-READINESS.md, review SECURITY.md and validate every enabled plugin. Plugins currently execute as trusted local code. An MIT license has been prepared, but ownership and dependency-license clearance remain pending. A public GitHub repository is not a Windows installation artifact.
 
 For a local start, copy sample/config.example.yaml into the ignored config.yaml and configure your own credentials. The example endpoint is deliberately nonfunctional.
 

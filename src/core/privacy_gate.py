@@ -50,7 +50,6 @@ class PrivacyConsentGate:
                 ConsentScope.SCREEN_CAPTURE.value,
                 ConsentScope.MICROPHONE_RECORD.value,
                 ConsentScope.CLIPBOARD_READ.value,
-                ConsentScope.CLOUD_UPLOAD.value,
             }
         else:
             self._allowed_scopes = {str(s) for s in allowed_scopes}

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import time
 from src.core.privacy_gate import ConsentScope, PrivacyConsentGate, TokenBudgetController
+from src.core.network_policy import is_loopback_provider
 from src.core.secret_store import SecretStore
 from src.llm.providers.openai import OpenAICompatibleProvider
 from src.llm.registry import ModelRegistry
@@ -31,7 +32,11 @@ class LLMService:
         self.prompt_type = prompt_type
         self.current_prompt = None
         self.secret_store = secret_store or SecretStore()
-        self.consent_gate = consent_gate or PrivacyConsentGate()
+        self.consent_gate = consent_gate if consent_gate is not None else PrivacyConsentGate()
+        # In public-source mode, remote uploads require explicit opt-in in local
+        # (Git-ignored) configuration. Do not infer consent from a stored API key.
+        if consent_gate is None and self.config_manager.get("privacy.allow_cloud_upload", False) is True:
+            self.consent_gate.set_scope_consent(ConsentScope.CLOUD_UPLOAD, True)
         self.budget_controller = budget_controller or TokenBudgetController()
         self.audio_model_resolver = FloatAudioModelResolver(self.config_manager)
         self._providers_cache = {}
@@ -76,7 +81,7 @@ class LLMService:
             target.provider.api_key, provider_name=target.provider.name
         )
         has_key = bool(resolved_key and not (resolved_key.startswith("<") and resolved_key.endswith(">")))
-        if not self.consent_gate.check_permission(ConsentScope.CLOUD_UPLOAD, provider=target.provider.name):
+        if not is_loopback_provider(target.provider.base_url) and not self.consent_gate.check_permission(ConsentScope.CLOUD_UPLOAD, provider=target.provider.name):
             return {
                 "ready": False,
                 "model": f"{target.provider.name}/{target.model_name}",
@@ -120,7 +125,11 @@ class LLMService:
         provider = self._get_provider(target.provider.name, target.model_name)
         if provider is None:
             if callback:
-                callback(self._error_payload(f"Provider not found in config.yaml: {target.provider.name}"))
+                callback(self._error_payload(
+                    "Cloud upload disabled: set privacy.allow_cloud_upload to true in local config.yaml"
+                    if not self.consent_gate.check_permission(ConsentScope.CLOUD_UPLOAD, provider=target.provider.name)
+                    else f"Provider not found in config.yaml: {target.provider.name}"
+                ))
             return None
 
         if not enable_failover:
@@ -173,7 +182,11 @@ class LLMService:
         provider = self._get_provider(target.provider.name, target.model_name)
         if provider is None:
             if callback:
-                callback(self._error_payload(f"Provider not found in config.yaml: {target.provider.name}"))
+                callback(self._error_payload(
+                    "Cloud upload disabled: set privacy.allow_cloud_upload to true in local config.yaml"
+                    if not self.consent_gate.check_permission(ConsentScope.CLOUD_UPLOAD, provider=target.provider.name)
+                    else f"Provider not found in config.yaml: {target.provider.name}"
+                ))
             return None
 
         effective_temp = 0.7 if temperature is None else temperature
@@ -331,8 +344,13 @@ class LLMService:
         }
 
     def _get_provider(self, provider_name, model_name=None):
+        # This check is on every actual provider dispatch path, including audio
+        # and failover. Readiness checks alone do not gate network activity.
         cache_key = (provider_name, model_name or "")
         provider_config = self.registry.get_provider(provider_name)
+        if provider_config is not None and not is_loopback_provider(provider_config.base_url):
+            if not self.consent_gate.check_permission(ConsentScope.CLOUD_UPLOAD, provider=str(provider_name)):
+                return None
         if provider_config is None:
             self._providers_cache.pop(cache_key, None)
             return None

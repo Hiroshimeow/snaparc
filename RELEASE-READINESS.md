@@ -6,7 +6,7 @@
 - Version: 0.0.1
 - Owner/brand: HCU Lab
 - Planned web landing page: https://snaparc.hcu-lab.me (not configured)
-- License: UNDECIDED pending ownership and third-party licensing audit
+- License: MIT drafted; ownership and third-party licensing verification pending
 - Publication: NOT AUTHORIZED until maintainer reviews local Git history and release gates
 
 ## Free release policy

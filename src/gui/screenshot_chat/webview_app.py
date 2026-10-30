@@ -7,6 +7,7 @@ import os
 import threading
 import time
 import urllib.request
+from urllib.parse import urlsplit
 
 import webview
 
@@ -83,8 +84,13 @@ def _trim_child_working_set() -> None:
 
 
 def _fetch_json(url: str, token: str = "") -> dict:
+    parsed = urlsplit(url)
+    if parsed.scheme != "http" or parsed.hostname not in {"127.0.0.1", "::1"} or parsed.username or parsed.password:
+        raise ValueError("ScreenshotChat API must use local loopback HTTP")
     request = urllib.request.Request(url, headers={"X-STC-Token": token})
-    with urllib.request.urlopen(request, timeout=2) as response:
+    # Never route the session credential through system or environment HTTP proxies.
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+    with opener.open(request, timeout=2) as response:
         return json.loads(response.read().decode("utf-8"))
 
 
@@ -128,28 +134,29 @@ def _parse_args():
     parser.add_argument("--poll-interval-ms", type=int, default=900)
     parser.add_argument("--ready-file", default="")
     parser.add_argument("--gui", default="edgechromium")
-    parser.add_argument("--token", default=os.environ.get("SNAPARC_CHAT_SESSION_TOKEN", ""))
     return parser.parse_args()
 
 
 def main():
-    os.environ.setdefault(
-        "WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS",
-        "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection,Translate,"
-        "BackForwardCache,RendererCodeIntegrity,SpareRendererForSitePerProcess "
+    token = os.environ.pop("SNAPARC_CHAT_SESSION_TOKEN", "")
+    os.environ["WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS"] = (
+        "--disable-features=msWebOOUI,msPdfOOUI,Translate,"
+        "BackForwardCache,SpareRendererForSitePerProcess "
         "--process-per-site --disk-cache-size=16777216 --media-cache-size=16777216 "
-        "--js-flags=--max-old-space-size=192",
+        "--js-flags=--max-old-space-size=192"
     )
     args = _parse_args()
+    if not token:
+        raise RuntimeError("ScreenshotChat session token missing")
     threading.Thread(target=_monitor_parent, args=(args.parent_pid,), name="ScreenshotChatParentMonitor", daemon=True).start()
 
-    page_url = f"{args.server_url.rstrip('/')}/?t={args.token}"
+    page_url = f"{args.server_url.rstrip('/')}/?t={token}"
     bridge_holder = {}
     bridge = ScreenshotChatChildBridge(None)
 
     def finalize_startup():
         try:
-            payload = _fetch_json(f"{args.server_url}/ui", args.token)
+            payload = _fetch_json(f"{args.server_url}/ui", token)
             action = str(payload.get("action") or "hide")
             if action == "hide":
                 window.hide()
@@ -181,7 +188,7 @@ def main():
         easy_drag=False,
     )
     bridge.set_window(window)
-    bridge_holder["poller"] = WindowCommandPoller(window, args.server_url, args.token)
+    bridge_holder["poller"] = WindowCommandPoller(window, args.server_url, token)
     webview.start(finalize_startup, gui=args.gui or "edgechromium", debug=False)
 
 

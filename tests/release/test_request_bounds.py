@@ -66,6 +66,7 @@ def _check(scenario):
                     "apiKey": "synthetic", "models": ["synthetic"], "supportsImages": True,
                 }}},
                 "agents": {"defaults": {"model": {"primary": "synthetic/synthetic"}}},
+                "privacy": {"allow_cloud_upload": True},
             }), encoding="utf-8")
             service = LLMService(config_manager=ConfigManager(str(config)))
             from src.agents.pi_rpc_bridge import NativePiRpcServer

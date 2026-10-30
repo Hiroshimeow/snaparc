@@ -1813,12 +1813,17 @@ class ScreenshotApp:
 
 def _restart_process():
     script_path = os.path.abspath(__file__)
-    args = [sys.executable, script_path, *sys.argv[1:]]
+    args = [sys.executable, *([] if getattr(sys, "frozen", False) else [script_path]), *sys.argv[1:]]
     os.chdir(BASE_DIR)
     os.execv(sys.executable, args)
 
 
 if __name__ == "__main__":
+    if getattr(sys, "frozen", False) and "--snaparc-webview-child" in sys.argv:
+        sys.argv.remove("--snaparc-webview-child")
+        from src.gui.screenshot_chat.webview_app import main as run_chat_child
+        run_chat_child()
+        sys.exit(0)
     app = ScreenshotApp()
     status = app.run()
     del app

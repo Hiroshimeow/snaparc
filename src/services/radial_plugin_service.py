@@ -459,6 +459,27 @@ def _simple_yaml_parse(raw_text: str) -> Dict[str, Any]:
     return {"wheel": {}, "plugins": []}
 
 
+# Bundled scripts shipped with the source distribution. New local files
+# are not auto-enabled until the user explicitly opts into custom plugins.
+BUNDLED_PLUGIN_SCRIPTS = frozenset({
+    "a.py", "ask_pi_agent.py", "clean_workspace.py", "extract_table.py",
+    "format_json.py", "ocr_clipboard.py", "pdf2png.py", "png_resize.py",
+    "summarize_doc.py", "translate_instant.py",
+})
+
+
+def plugin_child_environment() -> dict[str, str]:
+    """Pass basic process requirements, never ambient provider/session credentials.
+
+    Plugins remain trusted code with the user's filesystem privileges; this limits
+    accidental credential inheritance, not intentional local secret access.
+    """
+    safe = {"PATH", "PATHEXT", "SYSTEMROOT", "WINDIR", "COMSPEC", "TEMP", "TMP",
+            "USERPROFILE", "APPDATA", "LOCALAPPDATA", "HOMEDRIVE", "HOMEPATH",
+            "PYTHONPATH", "VIRTUAL_ENV", "UV_CACHE_DIR", "UV_PYTHON"}
+    return {key: value for key, value in os.environ.items() if key.upper() in safe}
+
+
 class RadialPluginService:
     """Manages configuration, hot-reload, parameter persistence, and execution of Radial Wheel plugins."""
 
@@ -479,6 +500,7 @@ class RadialPluginService:
         self._last_yaml_mtime: float = -1.0
         self._last_json_mtime: float = -1.0
         self._builtin_handlers: Dict[str, Callable[[Dict[str, Any], RadialPluginSpec], RadialPluginResult]] = {}
+        self._allow_user_plugins = False
         self.reload(force=True)
 
     def register_builtin_action(
@@ -515,6 +537,7 @@ class RadialPluginService:
                 stc_data = load_yaml_or_json(self.stc_json_path.read_text(encoding="utf-8"))
                 radial_cfg = stc_data.get("radial_plugins") if isinstance(stc_data, dict) else None
                 if isinstance(radial_cfg, dict):
+                    self._allow_user_plugins = radial_cfg.get("allow_user_plugins") is True
                     if isinstance(radial_cfg.get("wheel"), dict):
                         raw_wheel.update(radial_cfg["wheel"])
                     if isinstance(radial_cfg.get("plugins"), list):
@@ -551,6 +574,9 @@ class RadialPluginService:
         plugins_dir = self.repo_root / "plugins"
         if plugins_dir.is_dir():
             for script_file in sorted(plugins_dir.glob("*.py")):
+                if not self._allow_user_plugins and script_file.name not in BUNDLED_PLUGIN_SCRIPTS:
+                    print(f"[RadialPluginService] Skipping unapproved local plugin: {script_file.name}")
+                    continue
                 stem = script_file.stem
                 if stem.startswith("_") or stem in seen_ids:
                     continue
@@ -956,7 +982,7 @@ class RadialPluginService:
         eff_mode = (execution_mode or spec.execution_mode or "capture").strip().lower()
         if eff_mode in ("terminal", "detached"):
             try:
-                env = os.environ.copy()
+                env = plugin_child_environment()
                 env["STC_PLUGIN_PARAMS_JSON"] = json.dumps(resolved_params, ensure_ascii=False)
                 env["PYTHONIOENCODING"] = "utf-8"
                 if os.name == "nt" and eff_mode == "terminal":
@@ -1011,7 +1037,7 @@ class RadialPluginService:
             ctx_path = tmp.name
 
         try:
-            env = os.environ.copy()
+            env = plugin_child_environment()
             env["STC_PLUGIN_CONTEXT_FILE"] = ctx_path
             env["STC_PLUGIN_PARAMS_JSON"] = json.dumps(resolved_params, ensure_ascii=False)
             env["PYTHONIOENCODING"] = "utf-8"

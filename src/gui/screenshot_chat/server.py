@@ -76,6 +76,8 @@ class ScreenshotChatServer:
         enforce_token: bool = True,
     ):
         self.controller = controller
+        if host not in {"127.0.0.1", "localhost"}:
+            raise ValueError("ScreenshotChat server must bind to loopback")
         self.host = host
         self.port = int(port or 0)
         self.token = token or secrets.token_urlsafe(32)
@@ -192,7 +194,11 @@ class ScreenshotChatServer:
                     self._write_json(HTTPStatus.INTERNAL_SERVER_ERROR, {"error": "internal_error", "detail": detail})
 
             def _check(self, query=None, allow_query=False) -> bool:
-                if server._host_ok(self.headers.get("Host", "")) and server._authorized(
+                host = self.headers.get("Host", "")
+                origin = self.headers.get("Origin")
+                # A cross-origin request is never trusted, even with a leaked token.
+                origin_ok = not origin or origin.lower() == f"http://{host}".lower()
+                if server._host_ok(host) and origin_ok and server._authorized(
                     self.headers, query, allow_query=allow_query
                 ):
                     return True

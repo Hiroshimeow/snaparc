@@ -202,6 +202,7 @@ class NextGenMultimodalE2ETests(unittest.TestCase):
         cfg.get.side_effect = lambda key, default=None: {
             "agents.defaults.model.primary": "primary_prov/model-primary",
             "agents.defaults.model.fallbacks": ["backup_prov/model-backup"],
+            "privacy.allow_cloud_upload": True,
         }.get(key, default)
 
         class FailThenSucceedProvider:

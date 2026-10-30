@@ -452,6 +452,10 @@ class NativePiRpcServer:
             if config_path is not None and Path(cm.config_path).resolve() != cfg_path.resolve():
                 raise ValueError("Configuration singleton conflicts with explicit selection")
             cm.reload_if_changed()
+            # The Pi-RPC chat uses its own OpenAI client, outside LLMService.
+            # Enforce the same explicit local cloud permission before resolving
+            # any network-capable endpoint (including fallback providers).
+            from src.core.network_policy import is_loopback_provider
 
             clean_ref = str(model_ref or "").strip()
             if not clean_ref or clean_ref.startswith("pi://"):
@@ -480,6 +484,8 @@ class NativePiRpcServer:
             resolved_key = SecretStore().resolve_config_secret(raw_key, provider_name=provider_name) or raw_key
 
             if not base_url:
+                return None
+            if not is_loopback_provider(base_url) and cm.get("privacy.allow_cloud_upload", False) is not True:
                 return None
 
             return {

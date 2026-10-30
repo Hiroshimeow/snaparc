@@ -18,7 +18,8 @@ class LLMServiceTests(unittest.TestCase):
         }
         return types.SimpleNamespace(
             get_provider_config=lambda provider_name: providers.get(provider_name, {}),
-            get=lambda key, default=None: "cliproxy/gemini-3-flash"
+            get=lambda key, default=None: True if key == "privacy.allow_cloud_upload"
+            else "cliproxy/gemini-3-flash"
             if key == "agents.defaults.model.primary"
             else default,
             load_config=lambda force=False: None,

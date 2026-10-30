@@ -353,7 +353,7 @@ function renderMessages(data, sessionChanged = false) {
     const empty = document.createElement("div");
     empty.className = "empty-welcome";
     empty.innerHTML = `
-      <h3>🏮 STC Multimodal &amp; Pi-RPC Workspace (v2.1)</h3>
+      <h3>🏮 SnapArc Chat &amp; Tools</h3>
       <p>Snap regions with <strong>Right-Drag</strong>, push multi-snaps with <strong>Ctrl+Shift+Snap</strong>, drop any image/PDF/DOCX/code file here, or use Pi-RPC commands:</p>
       <div class="welcome-grid">
         <span class="welcome-pill" data-welcome-slash="/pi">🤖 /pi (Pi-RPC Agent)</span>
