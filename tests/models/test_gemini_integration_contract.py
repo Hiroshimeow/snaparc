@@ -58,6 +58,20 @@ class GeminiIntegrationContractTests(unittest.TestCase):
             },
         )
 
+    def test_get_provider_instance_rejects_non_openai_api_mode(self):
+        gemini = self.make_gemini()
+        gemini.config_manager = types.SimpleNamespace(
+            get_provider_config=lambda _provider_name: {
+                "api": "google-gemini",
+                "baseUrl": "https://example.invalid/v1",
+                "apiKey": "synthetic",
+                "models": ["gemini-3-flash"],
+            }
+        )
+        with patch("src.llm.providers.openai.OpenAICompatibleProvider") as provider:
+            self.assertIsNone(gemini._get_provider_instance("legacy"))
+            provider.assert_not_called()
+
     def test_process_image_openai_provider_uses_prompt_history_and_model_id(self):
         gemini = self.make_gemini()
         calls = []

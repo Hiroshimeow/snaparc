@@ -38,6 +38,9 @@ jobs:
       - name: Release brand audit
         shell: pwsh
         run: uv run --locked python scripts/release_brand_audit.py
+      - name: OpenAI-compatible protocol audit
+        shell: pwsh
+        run: uv run --locked python scripts/release_protocol_audit.py
       - name: Markdown URL injection regression
         shell: pwsh
         run: node scripts/test_markdown_url_security.cjs

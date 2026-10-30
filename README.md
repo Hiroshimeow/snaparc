@@ -41,6 +41,28 @@ uv run python main.py
 
 `config.yaml` and runtime state under `data/` are local and Git-ignored.
 
+## Model/provider protocol
+
+SnapArc has one inference protocol: **OpenAI-compatible Chat Completions**.
+Every text, image, audio and native Pi-RPC inference path ultimately calls
+`chat.completions.create` against the provider `baseUrl` configured in
+`config.yaml`.
+
+- Gemini, Claude, GPT or other names may appear as **model IDs** behind an
+  OpenAI-compatible provider; SnapArc does not use their vendor SDK/API modes.
+- Audio transcription is sent as an `input_audio` content part through Chat
+  Completions; SnapArc does not call a separate audio transcription endpoint.
+- Model IDs are configured locally; SnapArc does not call `/models` discovery.
+- Legacy `chat_completions` spelling is canonicalized to
+  `openai-completions`; vendor-specific API modes such as `google-gemini`
+  are rejected.
+- Provider endpoint/key/model values come from `config.yaml` and the local
+  secret store. There is no `NEW_API_*` or vendor-key fallback path.
+
+The Python `openai` package is used only as the public client library for this
+OpenAI-compatible wire protocol; the endpoint is not hard-coded to OpenAI's
+host.
+
 ## Privacy and AI provider consent
 
 Remote AI requests are disabled by default. To explicitly permit transmitting
@@ -83,8 +105,10 @@ See `SECURITY.md`.
 
 ## Licensing and assets
 
-Eligible source code is licensed under the MIT License. MIT permits commercial
-reuse and proprietary derivatives subject to its notice requirements.
+Repository files are MIT-licensed except the product assets identified in
+`ASSET_POLICY.md` and branding covered by `TRADEMARKS.md`. MIT permits
+commercial reuse and proprietary derivatives of the licensed code subject to
+its notice requirements.
 
 SnapArc/HCU Lab names and branding are governed separately by
 `TRADEMARKS.md`. Product UI assets under `src/animate/` and `src/icons/`
@@ -101,6 +125,7 @@ The source-only alpha does not redistribute the experimental PyInstaller build.
 uv sync --locked --python (py -3.12 -c 'import sys; print(sys.executable)') --group dev
 uv run python scripts/release_asset_audit.py
 uv run python scripts/release_license_audit.py
+uv run python scripts/release_protocol_audit.py
 node scripts/test_markdown_url_security.cjs
 uv run python -m src.release_smoke
 uv run python -m pytest -q tests

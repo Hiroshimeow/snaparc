@@ -54,11 +54,11 @@ class OpenAICompatibleProvider:
         trust_env=True,
         extra_headers=None,
     ):
-        self.api_key = api_key or os.getenv("NEW_API_KEY") or "sk-local-proxy"
-        self.base_url = base_url or os.getenv(
-            "NEW_API_BASE_URL", "http://100.82.151.89:8317/v1"
-        )
-        self.model = model or os.getenv("NEW_API_MODEL", "gpt-5.4")
+        self.api_key = str(api_key or "").strip() or "sk-local-proxy"
+        self.base_url = str(base_url or "").strip()
+        if not self.base_url:
+            raise ValueError("OpenAI-compatible provider requires baseUrl in config.yaml")
+        self.model = str(model or "").strip()
         self.provider_name = provider_name
         self.timeout = _coerce_timeout(timeout, 120.0)
         self.trust_env = _coerce_bool(trust_env, True)
@@ -80,18 +80,11 @@ class OpenAICompatibleProvider:
         return feature_name in {"text", "images", "audio", "stream", "tools"}
 
     def list_remote_models(self) -> list[str]:
-        """Fetch available model IDs from `{base_url}/models` on the OpenAI-compatible endpoint."""
-        try:
-            resp = self.client.models.list(extra_headers=self.extra_headers)
-            data = getattr(resp, "data", None) or []
-            models = []
-            for item in data:
-                mid = getattr(item, "id", None) or (item.get("id") if isinstance(item, dict) else None)
-                if mid and str(mid).strip():
-                    models.append(str(mid).strip())
-            return models
-        except Exception:
-            return []
+        """Disabled by design: SnapArc inference uses only Chat Completions.
+
+        Model IDs come from config.yaml; no /models discovery request is sent.
+        """
+        return []
 
     def _convert_history(self, history):
         """Converts role/parts or role/content history into OpenAI chat messages."""
@@ -248,20 +241,32 @@ class OpenAICompatibleProvider:
     ):
         def task():
             try:
-                with open(audio_path, "rb") as audio_file:
-                    response = self.client.audio.transcriptions.create(
-                        model=model or self.model,
-                        file=audio_file,
-                        prompt=prompt,
-                    )
-
-                if isinstance(response, str):
-                    text = response
-                else:
-                    text = getattr(response, "text", "") or ""
-
+                audio_data, audio_format = self._encode_audio_input(audio_path)
+                response = self.client.chat.completions.create(
+                    model=model or self.model,
+                    messages=[
+                        {
+                            "role": "user",
+                            "content": [
+                                {"type": "text", "text": prompt},
+                                {
+                                    "type": "input_audio",
+                                    "input_audio": {
+                                        "data": audio_data,
+                                        "format": audio_format,
+                                    },
+                                },
+                            ],
+                        }
+                    ],
+                    stream=False,
+                    extra_headers=self.extra_headers,
+                )
+                choices = getattr(response, "choices", None) or []
+                message = getattr(choices[0], "message", None) if choices else None
+                text = getattr(message, "content", "") if message is not None else ""
                 if callback:
-                    callback(text)
+                    callback(text or None)
             except Exception as exc:
                 print(f"Error in process_audio: {exc}")
                 traceback.print_exc()
@@ -269,6 +274,21 @@ class OpenAICompatibleProvider:
                     callback(None)
 
         threading.Thread(target=task, daemon=True).start()
+
+    def _encode_audio_input(self, audio_path):
+        suffix = os.path.splitext(str(audio_path))[1].lower()
+        if suffix in {".wav", ".mp3"}:
+            with open(audio_path, "rb") as audio_file:
+                raw = audio_file.read()
+            return base64.b64encode(raw).decode("ascii"), suffix[1:]
+
+        import io
+        import soundfile as sf
+
+        samples, sample_rate = sf.read(audio_path, dtype="float32", always_2d=False)
+        buffer = io.BytesIO()
+        sf.write(buffer, samples, sample_rate, format="WAV", subtype="PCM_16")
+        return base64.b64encode(buffer.getvalue()).decode("ascii"), "wav"
 
     def _collect_stream_text(self, response):
         full_response = ""

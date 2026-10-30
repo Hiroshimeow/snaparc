@@ -7,7 +7,7 @@ from typing import Protocol
 from src.utils.ConfigManager import ConfigManager
 
 
-SUPPORTED_FILE_AUDIO_PROVIDER_APIS = {"google-gemini", "openai-completions"}
+SUPPORTED_FILE_AUDIO_PROVIDER_APIS = {"openai-completions"}
 
 
 @dataclass(frozen=True)
@@ -261,7 +261,7 @@ class FloatAudioSourceResolver:
             title="Choose audio files",
             initialdir=getattr(self.recorder, "output_folder", None) or "src/rec_list",
             filetypes=[
-                ("Audio", "*.mp3;*.wav;*.m4a;*.ogg;*.flac"),
+                ("Audio", "*.mp3;*.wav;*.ogg;*.flac"),
                 ("All files", "*.*"),
             ],
         )

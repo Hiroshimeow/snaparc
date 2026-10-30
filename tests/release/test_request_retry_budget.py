@@ -35,13 +35,20 @@ def _check(client_path):
     httpx.Client.send = unavailable
     try:
         if client_path == "provider":
+            import threading
             from src.llm.providers.openai import OpenAICompatibleProvider
             provider = OpenAICompatibleProvider(
                 api_key="synthetic-offline-key", base_url="https://offline.invalid/v1",
                 model="synthetic-model", trust_env=False,
             )
+            done = threading.Event()
             try:
-                assert provider.list_remote_models() == []
+                provider.send_text_message(
+                    "offline retry probe",
+                    callback=lambda _payload: done.set(),
+                    model_name="synthetic-model",
+                )
+                assert done.wait(5), "Provider callback timed out"
             finally:
                 provider.client.close()
         else:

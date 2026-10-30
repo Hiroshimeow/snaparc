@@ -6,8 +6,7 @@ callers across `main.py`, `FloatingWindow.py`, and tests, while routing 100%
 of text, image, and audio requests through the single `openai-completions`
 (`OpenAICompatibleProvider` / `LLMService`) pipeline.
 
-All direct Google Gemini SDK (`google.genai` / `google.generativeai`),
-`GEMINI_API_KEY_*`, and `OPENAI_API_KEY` code paths have been removed.
+All direct vendor-specific Gemini SDK and legacy vendor-key code paths have been removed.
 """
 
 from __future__ import annotations
@@ -116,7 +115,7 @@ class Gemini:
             return self._providers_cache[provider_name]
 
         p_config = self.config_manager.get_provider_config(provider_name)
-        if not p_config:
+        if not p_config or p_config.get("api", "openai-completions") != "openai-completions":
             return None
 
         try:

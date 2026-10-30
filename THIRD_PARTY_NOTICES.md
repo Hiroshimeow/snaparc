@@ -2,9 +2,11 @@
 
 SnapArc's **source-only alpha** declares these packages as dependencies and does
 not publish a bundled Windows binary. Each dependency remains governed by its
-own upstream license. This inventory was checked against the locked/local
-metadata used for the release candidate; upstream license files remain
-authoritative.
+own upstream license. The locked third-party package source is the public
+`https://pypi.org/simple` registry; the only other lock source is the local
+SnapArc project itself. No private registry, Git dependency or external path
+dependency is present in the release candidate. This inventory was checked
+against locked/local metadata; upstream license files remain authoritative.
 
 | Direct dependency | Checked version | Declared license |
 |---|---:|---|

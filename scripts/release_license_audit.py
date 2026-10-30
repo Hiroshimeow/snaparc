@@ -16,6 +16,18 @@ def dep_name(requirement: str) -> str:
 def main() -> int:
     project = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
     failures: list[str] = []
+
+    lock_text = Path("uv.lock").read_text(encoding="utf-8")
+    allowed_sources = {
+        'source = { registry = "https://pypi.org/simple" }',
+        'source = { virtual = "." }',
+    }
+    source_lines = {
+        line.strip() for line in lock_text.splitlines() if line.strip().startswith("source = ")
+    }
+    unexpected_sources = sorted(source_lines - allowed_sources)
+    if unexpected_sources:
+        failures.append(f"uv.lock contains non-public/unexpected package sources: {unexpected_sources}")
     if project["project"].get("license") != "MIT":
         failures.append("pyproject project.license must be MIT")
     if not Path("LICENSE").is_file() or "MIT License" not in Path("LICENSE").read_text(encoding="utf-8-sig"):
@@ -51,7 +63,7 @@ def main() -> int:
     if unresolved:
         failures.append(f"direct dependencies with unresolved license metadata: {sorted(unresolved)}")
 
-    print(f"direct_dependencies={len(direct)}")
+    print(f"direct_dependencies={len(direct)} dependency_sources=pypi.org+local-project")
     for name, version, license_text in detected:
         if "LGPL" in license_text.upper() or name == "pypdfium2":
             print(f"NOTICE-REVIEW: {name} {version} -> {license_text}")

@@ -333,7 +333,7 @@ class V11CompleteVerificationTests(unittest.TestCase):
                     "models": {
                         "providers": {
                             "aistudio_api": {
-                                "api": "google-gemini",
+                                "api": "openai-completions",
                                 "displayName": "AI Studio",
                                 "models": ["gemini-2.5-flash"],
                             },

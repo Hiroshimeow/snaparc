@@ -187,7 +187,7 @@ class FloatAudioBatchCoordinatorTests(unittest.TestCase):
         max_active = 0
         lock = threading.Lock()
         coordinator = FloatAudioBatchCoordinator(
-            provider_api="google-gemini",
+            provider_api="openai-completions",
             max_retry=0,
         )
 

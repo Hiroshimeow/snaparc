@@ -28,6 +28,16 @@ identity.
   plugin discovery explicit opt-in.
 - Added malicious Markdown URL regression checks and release secret scanning.
 
+### Provider protocol
+
+- Enforced a single OpenAI-compatible Chat Completions inference protocol for
+  text, image, audio and native Pi-RPC paths.
+- Removed legacy vendor Gemini API modes, model-list discovery, separate audio
+  transcription endpoint, private endpoint defaults and `NEW_API_*` fallbacks.
+- Audio input now uses the Chat Completions `input_audio` content part.
+- Provider/model IDs are loaded from local configuration; vendor model names do
+  not imply vendor SDK integration.
+
 ### Verification
 
 The final release report records exact test counts, smoke results, hashes and

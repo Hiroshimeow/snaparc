@@ -29,7 +29,7 @@ class ModelRegistryTests(unittest.TestCase):
         self.assertEqual(target.provider.extra_headers, {"X-Test": "1"})
         self.assertEqual(target.model_name, "gemini-3-flash")
 
-    def test_resolve_gemini_provider_from_existing_api_field(self):
+    def test_rejects_non_openai_completions_provider_api(self):
         manager = types.SimpleNamespace(
             get_provider_config=lambda provider_name: {
                 "api": "google-gemini",
@@ -37,9 +37,8 @@ class ModelRegistryTests(unittest.TestCase):
             },
             get=lambda key, default=None: default,
         )
-        target = ModelRegistry(manager).resolve("google-gemini-cli/gemini-2.5-flash")
-
-        self.assertEqual(target.provider.platform, "openai")
+        with self.assertRaisesRegex(Exception, "only supports openai-completions"):
+            ModelRegistry(manager).resolve("legacy-provider/gemini-2.5-flash")
 
     def test_default_model_normalizes_short_name_from_model_list(self):
         manager = types.SimpleNamespace(

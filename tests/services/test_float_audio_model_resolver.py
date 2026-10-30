@@ -18,11 +18,11 @@ class FloatAudioModelResolverTests(unittest.TestCase):
                 "models": {
                     "providers": {
                         "google-gemini-cli": {
-                            "api": "google-gemini",
+                            "api": "openai-completions",
                             "models": ["gemini-3-flash", "gemini-2.5-flash"],
                         },
                         "aistudio_api": {
-                            "api": "google-gemini",
+                            "api": "openai-completions",
                             "models": ["gemini-2.5-pro"],
                         },
                         "cliproxy": {

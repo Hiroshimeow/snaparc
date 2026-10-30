@@ -1,4 +1,4 @@
-from src.llm.errors import ProviderResolutionError
+from src.llm.errors import ProviderResolutionError, ProviderUnsupportedError
 from src.llm.provider_config import (
     ModelTarget,
     ProviderConfig,
@@ -41,8 +41,12 @@ class ModelRegistry:
         )
 
     def _normalize_api(self, api: str) -> str:
-        del api
-        return "openai-completions"
+        value = str(api or "openai-completions").strip().lower()
+        if value != "openai-completions":
+            raise ProviderUnsupportedError(
+                f"Unsupported provider API {value!r}; SnapArc only supports openai-completions."
+            )
+        return value
 
     def _normalize_models(self, provider_name: str, raw: dict) -> tuple[str, ...]:
         raw_models = raw.get("models")

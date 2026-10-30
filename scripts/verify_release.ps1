@@ -29,6 +29,8 @@ uv run --locked python scripts/release_license_audit.py
 if($LASTEXITCODE -ne 0){throw 'Release license audit failed'}
 uv run --locked python scripts/release_brand_audit.py
 if($LASTEXITCODE -ne 0){throw 'Release brand audit failed'}
+uv run --locked python scripts/release_protocol_audit.py
+if($LASTEXITCODE -ne 0){throw 'OpenAI-compatible protocol audit failed'}
 node scripts/test_markdown_url_security.cjs
 if($LASTEXITCODE -ne 0){throw 'Markdown URL security regression failed'}
 uv run --locked python -m src.release_smoke

@@ -73,8 +73,7 @@ def _run(scenario, approval_path):
     approval = json.loads(Path(approval_path).read_text(encoding="utf-8"))
     assert approval.get("authorized_by"), "Missing authorizing owner"
     assert approval.get("vision_evidence"), "Missing provider/model vision-capability evidence"
-    assert approval.get("authentication_method") == "protected-models-endpoint", "Agree a protected authentication probe first"
-    assert approval.get("models_endpoint_requires_authentication") is True, "Public model listing cannot validate authentication"
+    assert approval.get("authentication_method") == "chat-completions-probe", "Live authentication must use Chat Completions"
     assert Path(approval["config_path"]).resolve() == CONFIG.resolve(), "Wrong external config path"
     assert CONFIG.is_file(), "External config must exist; never generate a substitute"
     before = CONFIG.read_bytes()
@@ -86,12 +85,11 @@ def _run(scenario, approval_path):
     provider_raw = raw["models"]["providers"][provider_name]
     assert provider_raw.get("supportsImages") is True, "Vision must be explicit, not a permissive default"
     assert provider_raw.get("baseUrl") and provider_raw.get("apiKey"), "No default endpoint or credential substitution"
-    for name in ("arithmetic", "translation", "ocr"):
+    for name in ("configuration", "arithmetic", "translation", "ocr"):
         budget = approval["budgets"][name]
         assert budget["requests"] == 1, "Each workflow needs its own one-request budget"
         assert 0 < budget["max_output_tokens"] <= 256, "Agree a small output limit"
         assert 0 < budget["timeout_seconds"] <= 60, "Agree a bounded timeout"
-    assert approval.get("authentication_probe_requests") == 1, "Budget the non-completion auth probe separately"
 
     with tempfile.TemporaryDirectory(prefix="stc-release-") as temporary:
         # The native Python bridge never reads Pi stores. Guard against future
@@ -126,8 +124,7 @@ def _run(scenario, approval_path):
 
         import httpx
         original_send = httpx.Client.send
-        attempts = {"authentication": 0, "completion": 0}
-        phase = "authentication"
+        attempts = {"completion": 0}
         started = time.monotonic()
         expected_url = urlsplit(target.provider.base_url)
         budget = approval["budgets"].get(scenario)
@@ -139,32 +136,36 @@ def _run(scenario, approval_path):
             actual = urlsplit(str(request.url))
             assert (actual.scheme, actual.netloc) == (expected_url.scheme, expected_url.netloc), "Unexpected destination"
             assert request.headers.get("authorization") == "Bearer " + provider.api_key, "Wrong authentication"
-            if phase == "authentication":
-                assert request.method == "GET" and actual.path.rstrip("/").endswith("/models")
-                attempts["authentication"] += 1
-                assert attempts["authentication"] == 1, "Authentication retry blocked"
-            else:
-                attempts["completion"] += 1
-                assert attempts["completion"] == 1, "Completion retry/failover blocked"
-                assert request.method == "POST" and actual.path.endswith("/chat/completions")
-                body = json.loads(request.content)
-                assert body["model"] == model_id, "Model substitution"
-                assert not body.get("tools"), "Release probes must not execute tools"
-                cap = body.get("max_completion_tokens", body.get("max_tokens"))
-                assert isinstance(cap, int) and 0 < cap <= budget["max_output_tokens"], "Application omitted the agreed output bound"
-                assert time.monotonic() - started <= budget["timeout_seconds"], "Request exceeded its time budget"
+            attempts["completion"] += 1
+            assert attempts["completion"] == 1, "Completion retry/failover blocked"
+            assert request.method == "POST" and actual.path.endswith("/chat/completions")
+            body = json.loads(request.content)
+            assert body["model"] == model_id, "Model substitution"
+            assert not body.get("tools"), "Release probes must not execute tools"
+            cap = body.get("max_completion_tokens", body.get("max_tokens"))
+            assert isinstance(cap, int) and 0 < cap <= budget["max_output_tokens"], "Application omitted the agreed output bound"
+            assert time.monotonic() - started <= budget["timeout_seconds"], "Request exceeded its time budget"
             return original_send(client, request, *args, **kwargs)
 
         httpx.Client.send = observed_send
         try:
-            # Real authenticated provider call, not check_readiness() or key presence.
-            assert model_id in provider.list_remote_models(), "Protected auth/model probe failed"
-            assert attempts["authentication"] == 1
-            if scenario == "configuration":
-                assert attempts["completion"] == 0
-                return
-            phase = "completion"
+            # Every live validation uses the same Chat Completions protocol.
             started = time.monotonic()
+            if scenario == "configuration":
+                done = threading.Event()
+                responses = []
+                provider.send_text_message(
+                    "Reply with exactly OK.",
+                    callback=lambda response: (responses.append(response), done.set()),
+                    model_name=model_id,
+                    max_output_tokens=budget["max_output_tokens"],
+                    timeout_seconds=budget["timeout_seconds"],
+                )
+                assert done.wait(budget["timeout_seconds"]), "Configuration completion timed out"
+                assert len(responses) == 1
+                assert str(responses[0].get("text") or "").strip().upper() == "OK", "Authenticated Chat Completions probe failed"
+                assert attempts == {"completion": 1}
+                return
             if scenario == "arithmetic":
                 server = NativePiRpcServer()
                 text, side_effect = server._run_via_openai_completions_agent(
@@ -211,7 +212,7 @@ def _run(scenario, approval_path):
                     assert text.casefold() == "bonjour", "Live French translation was not bonjour"
                 else:
                     assert " ".join(text.split()) == "HELLO RELEASE 123", "Live OCR did not recognize the raster"
-            assert attempts == {"authentication": 1, "completion": 1}, "Missing or extra real request"
+            assert attempts == {"completion": 1}, "Missing or extra real request"
             assert time.monotonic() - started <= budget["timeout_seconds"], "Live workflow exceeded its budget"
         finally:
             httpx.Client.send = original_send

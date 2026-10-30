@@ -13,7 +13,7 @@ class ConfigManager:
             "api": "openai-completions",
             "platform": "openai",
             "displayName": "CLIProxy / OpenAI-Compatible API",
-            "baseUrl": "http://100.82.151.89:8317/v1",
+            "baseUrl": "",
             "supportsImages": True,
             "supportsAudio": True,
             "models": ["gpt-5.4", "claude-sonnet-4-6", "gemini-2.5-pro", "gemini-2.5-flash", "gpt-4o-mini"],
@@ -295,7 +295,7 @@ class ConfigManager:
             if canonical_key not in provider_config and legacy_key in provider_config:
                 provider_config[canonical_key] = provider_config[legacy_key]
 
-        provider_config["api"] = "openai-completions"
+        provider_config["api"] = self._normalize_provider_api(provider_config.get("api"))
         provider_config["platform"] = "openai"
 
         models = []
@@ -311,8 +311,15 @@ class ConfigManager:
         provider_config["models"] = self._dedupe_model_names(provider_name, models)
 
     def _normalize_provider_api(self, api):
-        del api
-        return "openai-completions"
+        value = str(api or "openai-completions").strip().lower()
+        aliases = {
+            "chat_completions",
+            "chat-completions",
+            "openai_chat_completions",
+        }
+        if value in aliases:
+            return "openai-completions"
+        return value or "openai-completions"
 
     def _dedupe_model_names(self, provider_name, model_names):
         seen = set()
@@ -603,8 +610,8 @@ class ConfigManager:
                 {
                     "api": "openai-completions",
                     "displayName": prov_name,
-                    "baseUrl": "http://100.82.151.89:8317/v1",
-                    "apiKey": "<CLIPROXY_API_KEY>",
+                    "baseUrl": "",
+                    "apiKey": "",
                     "models": [],
                 },
             )

@@ -110,6 +110,34 @@ class SnapArcSecurityBoundaryTests(unittest.TestCase):
             finally:
                 ConfigManager._instance = None
 
+    def test_pi_rpc_rejects_non_openai_completions_api_mode(self):
+        import tempfile
+        import json
+        from pathlib import Path
+        from src.agents.pi_rpc_bridge import NativePiRpcServer
+        from src.utils.ConfigManager import ConfigManager
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            config_file = root / "config.yaml"
+            data = {
+                "models": {"providers": {
+                    "p": {"api":"google-gemini", "baseUrl":"https://remote.example/v1",
+                          "apiKey":"synthetic-key", "models":["m"]}
+                }},
+                "agents": {"defaults": {"model": {"primary": "p/m"}}},
+                "privacy": {"allow_cloud_upload": True},
+            }
+            server = NativePiRpcServer.__new__(NativePiRpcServer)
+            server.project_root = root
+            try:
+                ConfigManager._instance = None
+                config_file.write_text(json.dumps(data), encoding="utf-8")
+                self.assertIsNone(
+                    server._resolve_openai_endpoint_for_model("p/m", config_path=config_file)
+                )
+            finally:
+                ConfigManager._instance = None
+
     def test_cloud_upload_default_denied_but_explicit_consent_works(self):
         from src.core.privacy_gate import PrivacyConsentGate, ConsentScope
         gate = PrivacyConsentGate()

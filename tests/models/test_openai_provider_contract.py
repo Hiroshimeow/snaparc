@@ -68,6 +68,64 @@ class OpenAIProviderContractTests(unittest.TestCase):
             ],
         )
 
+    def test_provider_requires_configured_base_url(self):
+        with patch("src.llm.providers.openai.OpenAI"), patch(
+            "src.llm.providers.openai.httpx.Client"
+        ):
+            with self.assertRaisesRegex(ValueError, "requires baseUrl"):
+                OpenAICompatibleProvider(api_key="key", base_url="", model="model")
+
+    def test_audio_uses_chat_completions_input_audio(self):
+        import threading
+        import types
+
+        with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as audio_file:
+            audio_file.write(b"fake-wav")
+            audio_path = audio_file.name
+
+        try:
+            provider = OpenAICompatibleProvider.__new__(OpenAICompatibleProvider)
+            provider.model = "audio-model"
+            provider.provider_name = "test"
+            provider.base_url = "https://example.test/v1"
+            provider.extra_headers = None
+            calls = []
+
+            def create(**kwargs):
+                calls.append(kwargs)
+                return types.SimpleNamespace(
+                    choices=[
+                        types.SimpleNamespace(
+                            message=types.SimpleNamespace(content="transcript")
+                        )
+                    ]
+                )
+
+            provider.client = types.SimpleNamespace(
+                chat=types.SimpleNamespace(
+                    completions=types.SimpleNamespace(create=create)
+                )
+            )
+            done = threading.Event()
+            values = []
+            provider.process_audio(
+                audio_path,
+                callback=lambda value: (values.append(value), done.set()),
+                prompt="Transcribe",
+                model="audio-model",
+            )
+            self.assertTrue(done.wait(2))
+            self.assertEqual(values, ["transcript"])
+            self.assertEqual(len(calls), 1)
+            request = calls[0]
+            self.assertEqual(request["model"], "audio-model")
+            self.assertFalse(request["stream"])
+            audio_part = request["messages"][0]["content"][1]
+            self.assertEqual(audio_part["type"], "input_audio")
+            self.assertEqual(audio_part["input_audio"]["format"], "wav")
+        finally:
+            os.unlink(audio_path)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -583,46 +583,16 @@ class ScreenshotChatController:
         return options
 
     def sync_remote_models(self) -> list[str]:
-        """Fetch live models from `/v1/models` on configured OpenAI-compatible providers."""
-        discovered: list[str] = []
+        """Reload model IDs from local config.yaml without calling a discovery API."""
         try:
-            from src.core.secret_store import SecretStore
-            from src.llm.providers.openai import OpenAICompatibleProvider
-
-            providers = self.config_manager.get("models.providers")
-            if not isinstance(providers, dict) or not providers:
-                providers = {"cliproxy": self.config_manager.get_provider_config("cliproxy")}
-            add_fn = getattr(self.config_manager, "add_provider_model", None)
-
-            for p_name, p_cfg in list(providers.items()):
-                if not isinstance(p_cfg, dict):
-                    continue
-                base_url = str(p_cfg.get("baseUrl") or "").strip()
-                raw_key = str(p_cfg.get("apiKey") or "").strip()
-                if not base_url:
-                    continue
-                resolved_key = SecretStore().resolve_config_secret(raw_key, provider_name=p_name) or raw_key
-                prov = OpenAICompatibleProvider(
-                    api_key=resolved_key,
-                    base_url=base_url,
-                    provider_name=p_name,
-                    timeout=10.0,
-                )
-                for mid in prov.list_remote_models():
-                    full_id = f"{p_name}/{mid}" if "/" not in mid else mid
-                    if callable(add_fn):
-                        add_fn(full_id)
-                    discovered.append(full_id)
-        except Exception as exc:
-            self.set_status(f"Could not sync remote models: {exc}")
-            return []
-
-        if discovered:
-            self.set_status(f"✅ Synced {len(discovered)} model(s) from OpenAI API.")
+            self.config_manager.load_config(force=True)
+            configured = list(self.available_models())
+            self.set_status(f"Reloaded {len(configured)} configured model(s) from config.yaml.")
             self.refresh_window()
-        else:
-            self.set_status("ℹ️ Using configured models in config.yaml.")
-        return discovered
+            return configured
+        except Exception as exc:
+            self.set_status(f"Could not reload configured models: {exc}")
+            return []
 
     def add_custom_model(self, raw_model_id: str) -> str:
         """Add and select any custom OpenAI-compatible model ID (e.g. `cliproxy/deepseek-r1` or `qwen-max`)."""

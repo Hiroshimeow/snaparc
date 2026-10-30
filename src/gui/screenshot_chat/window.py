@@ -1463,7 +1463,7 @@ class ScreenshotChatWindow(customtkinter.CTkToplevel):
 
         sync_btn = customtkinter.CTkButton(
             hdr,
-            text="🔄 Sync /v1/models",
+            text="🔄 Reload config models",
             width=110,
             height=24,
             fg_color="#1e293b",

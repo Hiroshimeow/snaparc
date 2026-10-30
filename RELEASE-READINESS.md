@@ -13,11 +13,15 @@
 
 The final release gate on the current candidate working tree reported:
 
-- 631 Python tests passed, 14 skipped, 13 subtests passed.
+- 635 Python tests passed, 14 skipped, 13 subtests passed.
 - Release asset audit passed: 172 retained product image assets; no tracked
   screenshot/runtime media.
-- Direct dependency license audit passed; LGPLv3 dependencies and PDFium
-  redistribution requirements are explicitly flagged for future binary work.
+- Direct dependency/license-source audit passed: third-party dependencies are
+  locked to public PyPI; LGPLv3 dependencies and PDFium redistribution
+  requirements are explicitly flagged for future binary work.
+- OpenAI-compatible protocol audit passed: runtime inference uses only Chat
+  Completions; vendor Gemini API mode, model-list discovery, separate audio
+  transcription endpoint and legacy API environment fallbacks are absent.
 - Release brand audit passed.
 - Markdown URL injection regression passed for 9 malicious/safe cases.
 - Windows source smoke passed with CPython 3.12.10 / Tcl-Tk 8.6.15.
@@ -33,7 +37,10 @@ after the release-prep commit so they can reference an immutable revision.
 - Remote AI upload defaults to denied unless
   `privacy.allow_cloud_upload` is exactly boolean `true`.
 - The same remote-upload rule applies to LLMService and native Pi-RPC
-  completion dispatch; loopback providers remain local.
+  completion dispatch. Loopback providers are not gated; a local service may
+  itself forward data elsewhere under its own configuration.
+- Text, image, audio and native Pi-RPC inference all use the configured
+  OpenAI-compatible Chat Completions protocol.
 - Screenshot Chat binds to loopback, rejects cross-origin local API requests
   and does not pass its session token through process command-line arguments.
 - Plugin subprocesses receive a restricted environment and unbundled plugin

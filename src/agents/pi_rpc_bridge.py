@@ -7,7 +7,7 @@ Provides the primary Pi Sidecar Agent runtime for SnapArc v0.0.1:
    `bash`, `grep`, `find`, `ls`), image attachments, streaming thinking/text deltas,
    and tool approval gating.
 2. Also supports delegating to an external `pi --mode rpc` CLI binary when `STC_USE_EXTERNAL_PI_CLI=1`
-   with `OPENAI_BASE_URL` and `OPENAI_API_KEY` automatically injected from `config.yaml`.
+   using the provider/baseUrl/apiKey values resolved from `config.yaml`.
 3. Includes `PiTerminalToolset` so `read`, `write`, `edit`, `bash`, `grep`, `find`, and `ls`
    execute safely within `trusted_roots`.
 """
@@ -479,8 +479,10 @@ class NativePiRpcServer:
                 model_id = clean_ref or "gpt-5.4"
 
             p_cfg = cm.get_provider_config(provider_name) or {}
-            base_url = str(p_cfg.get("baseUrl") or os.environ.get("NEW_API_BASE_URL") or "").strip()
-            raw_key = str(p_cfg.get("apiKey") or os.environ.get("NEW_API_KEY") or "").strip()
+            if p_cfg.get("api", "openai-completions") != "openai-completions":
+                return None
+            base_url = str(p_cfg.get("baseUrl") or "").strip()
+            raw_key = str(p_cfg.get("apiKey") or "").strip()
             resolved_key = SecretStore().resolve_config_secret(raw_key, provider_name=provider_name) or raw_key
 
             if not base_url:
@@ -525,7 +527,7 @@ class NativePiRpcServer:
         from src.llm.request_bounds import completion_options
         options = completion_options(max_output_tokens, timeout_seconds)
         side_effect_started = False
-        api_key = endpoint["api_key"] if not endpoint["is_placeholder_key"] else (os.environ.get("CLIPROXY_API_KEY") or "sk-cliproxy")
+        api_key = endpoint["api_key"] if not endpoint["is_placeholder_key"] else "sk-local-proxy"
         timeout_s = min(90.0, float(endpoint.get("timeout") or 60.0))
 
         client = OpenAI(
