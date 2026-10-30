@@ -1,12 +1,10 @@
-import builtins
+
 import pathlib
-import runpy
 try:
     import tomllib
 except ImportError:
     import tomli as tomllib
 import unittest
-from unittest import mock
 
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -23,8 +21,13 @@ class UvSetupTests(unittest.TestCase):
         project = data.get("project", {})
         self.assertEqual(project.get("name"), "snaparc")
         self.assertIn("dependencies", project)
-        self.assertIn("pystray", project["dependencies"])
+        self.assertIn("httpx>=0.28,<1", project["dependencies"])
         self.assertIn("soundfile", project["dependencies"])
+        self.assertNotIn("openai", project["dependencies"])
+        self.assertNotIn("pynput", project["dependencies"])
+        self.assertNotIn("pystray", project["dependencies"])
+        self.assertNotIn("pypdfium2", project["dependencies"])
+        self.assertNotIn("pdf", project.get("optional-dependencies", {}))
 
         tool_uv = data.get("tool", {}).get("uv", {})
         self.assertEqual(tool_uv.get("package"), False)
@@ -33,22 +36,12 @@ class UvSetupTests(unittest.TestCase):
         data = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
         self.assertIn("tomli>=1; python_version < '3.11'", data["project"]["dependencies"])
 
-    def test_model_facade_imports_without_stdlib_tomllib(self):
-        original_import = builtins.__import__
-        backport_imports = []
+    def test_model_client_imports_without_vendor_sdk(self):
+        from src.llm.client import ModelClient
+        from src.llm.providers.completions import ChatCompletionsProvider
 
-        def python_310_import(name, *args, **kwargs):
-            if name == "tomllib":
-                raise ModuleNotFoundError("No module named 'tomllib'")
-            if name == "tomli":
-                backport_imports.append(name)
-                return tomllib
-            return original_import(name, *args, **kwargs)
-
-        with mock.patch("builtins.__import__", side_effect=python_310_import):
-            namespace = runpy.run_path(str(ROOT / "src/models/Gemini.py"))
-        self.assertIn("Gemini", namespace)
-        self.assertTrue(backport_imports)
+        self.assertTrue(callable(ModelClient))
+        self.assertTrue(callable(ChatCompletionsProvider))
 
     def test_readme_release_and_supported_test_command(self):
         readme = (ROOT / "README.md").read_text(encoding="utf-8")

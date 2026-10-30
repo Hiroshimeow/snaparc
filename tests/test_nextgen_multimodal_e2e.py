@@ -18,7 +18,7 @@ from src.core.dpi_capture import (
     WindowMoveSafeCapturer,
 )
 from src.core.ocr_pipeline import HybridOcrEngine, RegionAnnotator, ScreenshotComparator
-from src.core.privacy_gate import ConsentScope, PrivacyConsentGate, PrivacyPermissionError, TokenBudgetController
+from src.core.privacy_gate import ConsentScope, PrivacyConsentGate, PrivacyPermissionError
 from src.core.secret_store import SecretRedactor, SecretStore
 from src.core.singleton_guard import CrashRecoveryJournal, SingleInstanceGuard
 from src.core.skills_mcp import MCPClientAdapter, SkillRegistry
@@ -182,61 +182,27 @@ class NextGenMultimodalE2ETests(unittest.TestCase):
         self.assertFalse(res_after.fallback_to_llm)
         self.assertIn("ambiguous", res_after.error.lower())
 
-    def test_zero_token_readiness_and_model_failover_preserves_attribution(self):
+    def test_zero_token_readiness_uses_only_configured_model(self):
         providers = {
-            "primary_prov": {
+            "primary": {
                 "api": "openai-completions",
                 "baseUrl": "https://primary.example.test/v1",
-                "apiKey": "sk-" + "primary-valid-key-123456",
-                "models": ["model-primary"],
-            },
-            "backup_prov": {
-                "api": "openai-completions",
-                "baseUrl": "https://backup.example.test/v1",
-                "apiKey": "sk-" + "backup-valid-key-123456",
-                "models": ["model-backup"],
-            },
+                "apiKey": "synthetic-key",
+                "models": ["model-a"],
+            }
         }
         cfg = mock.MagicMock()
         cfg.get_provider_config.side_effect = lambda name: providers.get(name, {})
         cfg.get.side_effect = lambda key, default=None: {
-            "agents.defaults.model.primary": "primary_prov/model-primary",
-            "agents.defaults.model.fallbacks": ["backup_prov/model-backup"],
+            "agents.defaults.model.primary": "primary/model-a",
             "privacy.allow_cloud_upload": True,
         }.get(key, default)
 
-        class FailThenSucceedProvider:
-            def __init__(self, **kwargs):
-                self.provider_name = kwargs.get("provider_name")
-
-            def send_text_message(self, prompt, *, callback=None, model_name=None, **_kwargs):
-                if self.provider_name == "primary_prov":
-                    callback({"text": "Error: 503 Service Unavailable"})
-                else:
-                    callback({"text": f"Answered by {self.provider_name}/{model_name}"})
-
-            def supports(self, _f):
-                return True
-
-        with mock.patch("src.llm.service.OpenAICompatibleProvider", FailThenSucceedProvider):
-            service = LLMService(config_manager=cfg)
-            readiness = service.check_readiness("primary_prov/model-primary")
-            self.assertTrue(readiness["ready"])
-            self.assertEqual(readiness["tokens_consumed"], 0)
-            self.assertEqual(service.budget_controller.summary()["total_tokens"], 0)
-
-            results = []
-            service.send_text_message(
-                "Explain DPI scaling",
-                callback=results.append,
-                model_name="primary_prov/model-primary",
-                enable_failover=True,
-            )
-            self.assertEqual(len(results), 1)
-            self.assertEqual(results[0]["text"], "Answered by backup_prov/model-backup")
-            self.assertEqual(results[0]["model_used"], "backup_prov/model-backup")
-            self.assertEqual(results[0]["fallback_from"], "primary_prov/model-primary")
-            self.assertGreater(service.budget_controller.summary()["total_tokens"], 0)
+        service = LLMService(config_manager=cfg)
+        readiness = service.check_readiness("primary/model-a")
+        self.assertTrue(readiness["ready"])
+        self.assertEqual(readiness["tokens_consumed"], 0)
+        self.assertEqual(readiness["model"], "primary/model-a")
 
     def test_secret_store_and_redactor_scrub_all_credential_patterns(self):
         store = SecretStore(self.temp_dir / "secrets.dpapi.json")
@@ -351,15 +317,15 @@ class NextGenMultimodalE2ETests(unittest.TestCase):
         )
         imported = controller.import_held_snaps()
         self.assertEqual(imported, 1)
-        accepted = controller.send_message("Dịch và giải thích ảnh chụp này", "provider/main", "prompt_translate")
+        accepted = controller.send_message("Dá»‹ch vÃ  giáº£i thÃ­ch áº£nh chá»¥p nÃ y", "provider/main", "prompt_translate")
         self.assertTrue(accepted)
 
         session = controller.get_active_session()
         job_id = session.pending_job_ids[0]
-        controller.event_queue.put(RunnerEvent("message_delta", session.id, job_id, "main", text="Bản dịch: "))
-        controller.event_queue.put(RunnerEvent("message_delta", session.id, job_id, "main", text="Báo cáo doanh thu Q4."))
+        controller.event_queue.put(RunnerEvent("message_delta", session.id, job_id, "main", text="Báº£n dá»‹ch: "))
+        controller.event_queue.put(RunnerEvent("message_delta", session.id, job_id, "main", text="BÃ¡o cÃ¡o doanh thu Q4."))
         controller.event_queue.put(
-            RunnerEvent("message_final", session.id, job_id, "main", text="Bản dịch: Báo cáo doanh thu Q4.")
+            RunnerEvent("message_final", session.id, job_id, "main", text="Báº£n dá»‹ch: BÃ¡o cÃ¡o doanh thu Q4.")
         )
         controller.event_queue.put(RunnerEvent("job_finished", session.id, job_id, "main"))
         controller.drain_runner_events()
@@ -372,8 +338,8 @@ class NextGenMultimodalE2ETests(unittest.TestCase):
             prompt_name="Trans",
             model_name="provider/main",
             image_path=frame_a.saved_path,
-            prompt_text="Dịch và giải thích ảnh chụp này",
-            answer_text="Bản dịch: Báo cáo doanh thu Q4.",
+            prompt_text="Dá»‹ch vÃ  giáº£i thÃ­ch áº£nh chá»¥p nÃ y",
+            answer_text="Báº£n dá»‹ch: BÃ¡o cÃ¡o doanh thu Q4.",
             is_pinned=True,
             pin_title="Doanh thu Q4",
         )
@@ -382,7 +348,7 @@ class NextGenMultimodalE2ETests(unittest.TestCase):
 
         recalled = sql_store.search("doanh thu Q4")
         self.assertEqual(len(recalled), 1)
-        self.assertEqual(recalled[0]["answer_text"], "Bản dịch: Báo cáo doanh thu Q4.")
+        self.assertEqual(recalled[0]["answer_text"], "Báº£n dá»‹ch: BÃ¡o cÃ¡o doanh thu Q4.")
         sql_store.close()
 
 

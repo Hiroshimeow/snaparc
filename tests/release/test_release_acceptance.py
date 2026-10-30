@@ -187,7 +187,7 @@ def _run(scenario, approval_path):
                     service.send_text_message(
                         "Hello", callback=completed, history=[],
                         system_prompt="Translate the user's text into French. Reply only with the translation.",
-                        temperature=0, model_name=selected, enable_failover=False,
+                        temperature=0, model_name=selected,
                         max_output_tokens=budget["max_output_tokens"], timeout_seconds=budget["timeout_seconds"],
                     )
                 else:
@@ -200,7 +200,7 @@ def _run(scenario, approval_path):
                     service.process_image(
                         [str(raster)], callback=completed, history=[],
                         custom_prompt_text="Recognize the text in this image. Return only the recognized text.",
-                        model_full_name=selected, enable_failover=False,
+                        model_full_name=selected,
                         max_output_tokens=budget["max_output_tokens"], timeout_seconds=budget["timeout_seconds"],
                     )
                 assert done.wait(budget["timeout_seconds"]), "Live service timed out; no retry authorized"

@@ -1,9 +1,8 @@
 """Native `pi --mode rpc` & OpenAI-Completions Agentic Bridge (`src/agents/pi_rpc_bridge.py`) — v2.4.
 
 Provides the primary Pi Sidecar Agent runtime for SnapArc v0.0.1:
-1. Powered directly by the single unified OpenAI-compatible Chat Completions API
-   (`openai-completions` in `config.yaml`, e.g. `cliproxy/gpt-5.4`, `cliproxy/claude-sonnet-4-6`,
-   `cliproxy/gemini-2.5-pro`) with full multi-step tool calling (`read`, `write`, `edit`,
+1. Powered directly by the single configured OpenAI-compatible Chat Completions API
+   (`openai-completions` in `config.yaml`) with full multi-step tool calling (`read`, `write`, `edit`,
    `bash`, `grep`, `find`, `ls`), image attachments, streaming thinking/text deltas,
    and tool approval gating.
 2. Also supports delegating to an external `pi --mode rpc` CLI binary when `STC_USE_EXTERNAL_PI_CLI=1`
@@ -464,22 +463,12 @@ class NativePiRpcServer:
                     or str(cm.get("agents.defaults.model.primary") or "").strip()
                 )
             all_models = cm.get_all_models()
-            if clean_ref not in all_models and "/" not in clean_ref and clean_ref:
-                for full_k in all_models:
-                    if full_k.endswith(f"/{clean_ref}"):
-                        clean_ref = full_k
-                        break
-            if not clean_ref and all_models:
-                clean_ref = next(iter(all_models.keys()))
+            if not clean_ref or "/" not in clean_ref or clean_ref not in all_models:
+                return None
 
-            if "/" in clean_ref:
-                provider_name, model_id = clean_ref.split("/", 1)
-            else:
-                provider_name = "cliproxy"
-                model_id = clean_ref or "gpt-5.4"
-
+            provider_name, model_id = clean_ref.split("/", 1)
             p_cfg = cm.get_provider_config(provider_name) or {}
-            if p_cfg.get("api", "openai-completions") != "openai-completions":
+            if p_cfg.get("api") != "openai-completions":
                 return None
             base_url = str(p_cfg.get("baseUrl") or "").strip()
             raw_key = str(p_cfg.get("apiKey") or "").strip()
@@ -521,21 +510,21 @@ class NativePiRpcServer:
         timeout_seconds=None,
     ) -> tuple[Optional[str], bool]:
         """Execute a multi-step Pi Sidecar agent loop over the OpenAI-compatible Chat Completions API."""
-        import httpx
-        from openai import OpenAI
-
+        from src.llm.providers.completions import ChatCompletionsProvider
         from src.llm.request_bounds import completion_options
-        options = completion_options(max_output_tokens, timeout_seconds)
-        side_effect_started = False
-        api_key = endpoint["api_key"] if not endpoint["is_placeholder_key"] else "sk-local-proxy"
-        timeout_s = min(90.0, float(endpoint.get("timeout") or 60.0))
 
-        client = OpenAI(
-            api_key=api_key,
+        options = completion_options(max_output_tokens, timeout_seconds)
+        request_timeout = options.pop("timeout", None)
+        side_effect_started = False
+        timeout_s = min(90.0, float(endpoint.get("timeout") or 60.0))
+        client = ChatCompletionsProvider(
+            api_key=endpoint["api_key"],
             base_url=endpoint["base_url"],
+            model=endpoint["model_id"],
+            provider_name=endpoint.get("provider_name", ""),
             timeout=timeout_s,
-            max_retries=0,
-            http_client=httpx.Client(trust_env=endpoint.get("trust_env", True), timeout=timeout_s),
+            trust_env=endpoint.get("trust_env", True),
+            extra_headers=endpoint.get("extra_headers"),
         )
         toolset = PiTerminalToolset(cwd=cwd, trusted_roots=trusted_roots)
 
@@ -593,43 +582,41 @@ class NativePiRpcServer:
                 "stream": True,
                 **options,
             }
-            if endpoint.get("extra_headers"): 
-                req_kwargs["extra_headers"] = endpoint["extra_headers"]
             if use_tools:
                 req_kwargs["tools"] = PI_OPENAI_TOOL_SCHEMAS
 
             try:
-                stream = client.chat.completions.create(**req_kwargs)
+                response = client.open_stream(req_kwargs, timeout_seconds=request_timeout)
             except Exception:
                 if use_tools:
-                    # Fallback if target OpenAI-compatible proxy/model does not support `tools`
+                    # Some compatible backends do not implement tool calling.
                     use_tools = False
                     req_kwargs.pop("tools", None)
-                    stream = client.chat.completions.create(**req_kwargs)
+                    response = client.open_stream(req_kwargs, timeout_seconds=request_timeout)
                 else:
                     raise
 
             turn_text_chunks: list[str] = []
             tool_calls_acc: dict[int, dict[str, str]] = {}
 
-            for chunk in stream:
+            for chunk in client.iter_sse(response):
                 if job_id in self.canceled_jobs:
                     break
-                choices = getattr(chunk, "choices", None)
-                if not choices:
+                choices = chunk.get("choices") if isinstance(chunk, dict) else None
+                if not isinstance(choices, list) or not choices or not isinstance(choices[0], dict):
                     continue
-                delta = getattr(choices[0], "delta", None)
-                if delta is None:
+                delta = choices[0].get("delta")
+                if not isinstance(delta, dict):
                     continue
 
-                reasoning = getattr(delta, "reasoning_content", None) or getattr(delta, "thinking", None)
+                reasoning = delta.get("reasoning_content") or delta.get("thinking")
                 if reasoning:
                     self._emit_job_event(
                         job_id,
                         {"kind": "thinking_delta", "text": str(reasoning), "partial": True},
                     )
 
-                content_piece = getattr(delta, "content", None)
+                content_piece = delta.get("content")
                 if content_piece:
                     turn_text_chunks.append(str(content_piece))
                     self._emit_job_event(
@@ -637,20 +624,22 @@ class NativePiRpcServer:
                         {"kind": "message_delta", "text": str(content_piece), "partial": True},
                     )
 
-                delta_tcs = getattr(delta, "tool_calls", None)
-                if delta_tcs:
+                delta_tcs = delta.get("tool_calls")
+                if isinstance(delta_tcs, list):
                     for tc in delta_tcs:
-                        idx = int(getattr(tc, "index", 0) or 0)
+                        if not isinstance(tc, dict):
+                            continue
+                        idx = int(tc.get("index", 0) or 0)
                         entry = tool_calls_acc.setdefault(idx, {"id": "", "name": "", "arguments": ""})
-                        tc_id = getattr(tc, "id", None)
+                        tc_id = tc.get("id")
                         if tc_id:
                             entry["id"] = str(tc_id)
-                        fn = getattr(tc, "function", None)
-                        if fn is not None:
-                            fn_name = getattr(fn, "name", None)
+                        fn = tc.get("function")
+                        if isinstance(fn, dict):
+                            fn_name = fn.get("name")
                             if fn_name:
                                 entry["name"] += str(fn_name)
-                            fn_args = getattr(fn, "arguments", None)
+                            fn_args = fn.get("arguments")
                             if fn_args:
                                 entry["arguments"] += str(fn_args)
 

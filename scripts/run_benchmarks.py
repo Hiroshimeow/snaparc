@@ -26,7 +26,7 @@ from src.core.dpi_capture import (  # noqa: E402
     WindowMoveSafeCapturer,
 )
 from src.core.ocr_pipeline import HybridOcrEngine, ScreenshotComparator  # noqa: E402
-from src.core.privacy_gate import PrivacyConsentGate, TokenBudgetController  # noqa: E402
+from src.core.privacy_gate import PrivacyConsentGate  # noqa: E402
 from src.core.secret_store import SecretStore  # noqa: E402
 from src.core.skills_mcp import SkillRegistry  # noqa: E402
 from src.core.sqlite_history import SQLiteHistoryStore  # noqa: E402
@@ -49,7 +49,6 @@ def run_benchmarks() -> dict:
         cfg = ConfigManager(str(temp_root / "stc.json"))
         secret_store = SecretStore(temp_root / "secrets.dpapi.json")
         consent_gate = PrivacyConsentGate()
-        budget = TokenBudgetController()
         skills = SkillRegistry()
         db_path = temp_root / "stc_history_v2.sqlite3"
         history_store = SQLiteHistoryStore(db_path, thumbnails_dir=temp_root / "thumbs")
@@ -119,7 +118,7 @@ def run_benchmarks() -> dict:
                 "timestamp_str": f"20261021_{idx:06d}",
                 "created_at": time.time() - (1200 - idx),
                 "prompt_name": "Trans" if idx % 2 == 0 else "Expert",
-                "model_name": "aistudio_api/gemini-2.5-flash",
+                "model_name": "provider/example-model",
                 "image_path": last_frame.saved_path if idx == 0 else "",
                 "prompt_text": f"Analyze screenshot region #{idx} for multi-monitor DPI scaling",
                 "answer_text": (
@@ -152,17 +151,6 @@ def run_benchmarks() -> dict:
 
         db_size_kb = round(db_path.stat().st_size / 1024.0, 2)
 
-        # 6. Token & Cost Accounting verification
-        usage = budget.record_usage(
-            run_id="bench_run_1",
-            session_id="sess_0",
-            provider="aistudio_api",
-            model="aistudio_api/gemini-2.5-flash",
-            prompt_text="Translate this screenshot region into Vietnamese.",
-            completion_text="Dịch vùng ảnh chụp màn hình này sang tiếng Việt.",
-            image_bytes_len=len(last_frame.png_bytes),
-            latency_ms=312.5,
-        )
         history_store.close()
 
         return {
@@ -194,14 +182,6 @@ def run_benchmarks() -> dict:
                 "fts5_search_p95_ms": percentile(search_latencies_ms, 95),
                 "pagination_p50_ms": percentile(page_latencies_ms, 50),
                 "db_size_kb": db_size_kb,
-            },
-            "token_cost_accounting_sample": {
-                "prompt_tokens": usage.prompt_tokens,
-                "completion_tokens": usage.completion_tokens,
-                "total_tokens": usage.total_tokens,
-                "upload_bytes": usage.upload_bytes,
-                "download_bytes": usage.download_bytes,
-                "estimated_cost_usd": usage.estimated_cost_usd,
             },
         }
     finally:

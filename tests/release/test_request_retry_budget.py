@@ -1,6 +1,7 @@
-"""Offline regression: real SDK clients must not retry failed requests.
 
-Run in fresh interpreters because other suite modules install SDK doubles.
+"""Offline regression: real HTTP clients must not retry failed requests.
+
+Run in fresh interpreters because other suite modules may install HTTP doubles.
 The HTTP boundary is replaced; these tests never contact a provider.
 """
 from pathlib import Path
@@ -22,7 +23,6 @@ def test_real_application_client_makes_only_one_http_attempt(client_path):
 def _check(client_path):
     import tempfile
     import httpx
-    import openai
 
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
     attempts = []
@@ -36,8 +36,8 @@ def _check(client_path):
     try:
         if client_path == "provider":
             import threading
-            from src.llm.providers.openai import OpenAICompatibleProvider
-            provider = OpenAICompatibleProvider(
+            from src.llm.providers.completions import ChatCompletionsProvider
+            provider = ChatCompletionsProvider(
                 api_key="synthetic-offline-key", base_url="https://offline.invalid/v1",
                 model="synthetic-model", trust_env=False,
             )
@@ -66,7 +66,7 @@ def _check(client_path):
                         job_id="offline", cwd=root, thinking_level="off", tool_policy="none",
                         trusted_roots=[root], approval_timeout_ms=1000,
                     )
-                except openai.APIStatusError:
+                except httpx.HTTPStatusError:
                     pass
                 else:
                     raise AssertionError("Expected the synthetic HTTP failure")

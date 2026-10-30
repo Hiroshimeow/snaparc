@@ -1493,7 +1493,6 @@ class FloatingWindow:
             select_audio_files_callback=getattr(self.packet, "select_audio_files_callback", None),
             get_audio_duration_callback=getattr(self.packet, "get_audio_duration_callback", None),
             pause_audio_callback=getattr(self.packet, "pause_audio_callback", None),
-            gemini_instance=getattr(self.packet, "gemini_instance", None),
             toggle_follow_callback=getattr(self.packet, "toggle_follow_callback", None),
             get_follow_state_callback=getattr(self.packet, "get_follow_state_callback", None),
             get_audio_stt_state_callback=getattr(self.packet, "get_audio_stt_state_callback", None),

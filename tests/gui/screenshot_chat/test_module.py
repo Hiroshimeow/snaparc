@@ -20,7 +20,7 @@ class ScreenshotChatModuleTests(unittest.TestCase):
                 held_images_getter="getter",
                 held_images_consumer="consumer",
                 llm_service="llm",
-                gemini_factory="gemini_factory",
+                model_client_factory="model_client_factory",
             )
 
         controller_cls.assert_called_once_with(
@@ -30,7 +30,7 @@ class ScreenshotChatModuleTests(unittest.TestCase):
             held_images_getter="getter",
             held_images_consumer="consumer",
             llm_service="llm",
-            gemini_factory="gemini_factory",
+            model_client_factory="model_client_factory",
         )
         module.prewarm()
         module.show()
@@ -111,18 +111,18 @@ class ScreenshotChatModuleTests(unittest.TestCase):
 
         calls = []
         config = mock.MagicMock()
-        gemini = mock.MagicMock()
-        gemini.llm_service = "llm"
+        model_client = mock.MagicMock()
+        model_client.llm_service = "llm"
         module = mock.MagicMock()
 
         with mock.patch.object(standalone, "ConfigManager", side_effect=lambda path: calls.append(("config", path)) or config), \
-             mock.patch.object(standalone, "Gemini", side_effect=lambda: calls.append(("gemini", None)) or gemini), \
+             mock.patch.object(standalone, "ModelClient", side_effect=lambda config: calls.append(("model_client", config)) or model_client), \
              mock.patch.object(standalone, "ChatbotModule", side_effect=lambda *args, **kwargs: calls.append(("module", kwargs["project_root"])) or module):
             result = standalone.build_module("root")
 
         self.assertIs(result, module)
         self.assertEqual(calls[0], ("config", standalone.resolve_config_path()))
-        self.assertEqual(calls[1][0], "gemini")
+        self.assertEqual(calls[1][0], "model_client")
         self.assertEqual(calls[2][0], "module")
 
     def test_standalone_main_shows_and_shutdowns_same_module(self):

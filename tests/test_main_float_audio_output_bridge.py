@@ -14,11 +14,9 @@ _MODULE_OVERRIDES = {
     "src.utils.icon_animator": sys.modules.get("src.utils.icon_animator"),
     "src.utils.HotkeyManager": sys.modules.get("src.utils.HotkeyManager"),
     "src.utils.FollowManager": sys.modules.get("src.utils.FollowManager"),
-    "pystray": sys.modules.get("pystray"),
     "keyboard": sys.modules.get("keyboard"),
     "soundcard": sys.modules.get("soundcard"),
     "soundfile": sys.modules.get("soundfile"),
-    "pynput": sys.modules.get("pynput"),
 }
 
 floating_window_module = types.ModuleType("src.gui.FloatingWindow")
@@ -46,14 +44,6 @@ sys.modules.setdefault(
     "src.utils.FollowManager",
     types.SimpleNamespace(FollowManager=type("FollowManager", (), {})),
 )
-sys.modules.setdefault(
-    "pystray",
-    types.SimpleNamespace(
-        Icon=object,
-        Menu=lambda *args, **kwargs: None,
-        MenuItem=lambda *args, **kwargs: None,
-    ),
-)
 sys.modules.setdefault("keyboard", types.SimpleNamespace())
 sys.modules.setdefault("soundcard", types.SimpleNamespace())
 sys.modules.setdefault(
@@ -63,11 +53,6 @@ sys.modules.setdefault(
     ),
 )
 
-pynput_module = types.ModuleType("pynput")
-mouse_stub = types.SimpleNamespace(Controller=object, Listener=object, Button=types.SimpleNamespace(left="left", right="right"))
-pynput_module.mouse = mouse_stub
-sys.modules.setdefault("pynput.mouse", mouse_stub)
-sys.modules.setdefault("pynput", pynput_module)
 
 
 class _DummyUser32:
@@ -92,13 +77,13 @@ class _DummyKernel32:
         return self._DummyCFunc()
 
 
-ctypes.windll = types.SimpleNamespace(
+_IMPORT_WINDLL = types.SimpleNamespace(
     user32=_DummyUser32(),
     shcore=_DummyShcore(),
     kernel32=_DummyKernel32(),
 )
-
-import main  # noqa: E402
+with patch.object(ctypes, "windll", _IMPORT_WINDLL):
+    import main  # noqa: E402
 
 
 def tearDownModule():
@@ -108,13 +93,7 @@ def tearDownModule():
         else:
             sys.modules[module_name] = original
 
-    if _ORIGINAL_WINDLL is None:
-        try:
-            del ctypes.windll
-        except AttributeError:
-            pass
-    else:
-        ctypes.windll = _ORIGINAL_WINDLL
+
 
 
 class _FakeWin:
@@ -161,7 +140,7 @@ class MainFloatAudioOutputBridgeTests(unittest.TestCase):
         latest = _FakeFloatingWindow(exists=True)
         captured = {}
         app.root = object()
-        app.gemini = types.SimpleNamespace(model="cliproxy/gpt-5.4")
+        app.model_client = types.SimpleNamespace(model="cliproxy/gpt-5.4")
         app.recorder = types.SimpleNamespace(get_duration=lambda: 0)
         app.toggle_audio_recording = lambda *args, **kwargs: None
         app.capture_transcribe_snapshot = lambda *args, **kwargs: None
@@ -190,7 +169,7 @@ class MainFloatAudioOutputBridgeTests(unittest.TestCase):
     def test_capture_transcribe_snapshot_delegates_to_action_service(self):
         app = main.ScreenshotApp.__new__(main.ScreenshotApp)
         calls = []
-        app.gemini = types.SimpleNamespace(model="cliproxy/gpt-5.4")
+        app.model_client = types.SimpleNamespace(model="cliproxy/gpt-5.4")
         app.float_audio_action_service = types.SimpleNamespace(
             transcribe_latest=lambda selected_model=None, window_instance=None: calls.append(
                 (selected_model, window_instance)
@@ -208,7 +187,7 @@ class MainFloatAudioOutputBridgeTests(unittest.TestCase):
         calls = []
         root = object()
         app.root = root
-        app.gemini = types.SimpleNamespace(model="cliproxy/gpt-5.4")
+        app.model_client = types.SimpleNamespace(model="cliproxy/gpt-5.4")
         app.float_audio_action_service = types.SimpleNamespace(
             transcribe_selected_files=lambda parent=None, selected_model=None: (
                 calls.append((parent, selected_model)),
@@ -221,16 +200,16 @@ class MainFloatAudioOutputBridgeTests(unittest.TestCase):
         self.assertEqual(result, "started")
         self.assertEqual(calls, [(root, "cliproxy/gpt-5.4")])
 
-    def test_handle_gemini_result_passes_stt_callbacks_into_packet_factory(self):
+    def test_handle_model_result_passes_stt_callbacks_into_packet_factory(self):
         app = main.ScreenshotApp.__new__(main.ScreenshotApp)
         app.root = object()
-        app.gemini = types.SimpleNamespace(model="cliproxy/gpt-5.4")
+        app.model_client = types.SimpleNamespace(model="cliproxy/gpt-5.4")
         app.animator = types.SimpleNamespace(stop_animation=lambda: None)
         app.PROMPT_DISPLAY_NAMES = {"prompt_fix_grammar": "Fix prompt"}
         app.screenshots_dir = "screens"
         app.recorder = types.SimpleNamespace(get_duration=lambda: 0)
         app.history_manager = types.SimpleNamespace(write_to_html=lambda **kwargs: None)
-        app.rerun_gemini_processing = lambda *args, **kwargs: None
+        app.rerun_model_processing = lambda *args, **kwargs: None
         app.toggle_audio_recording = lambda *args, **kwargs: None
         app.capture_transcribe_snapshot = lambda *args, **kwargs: None
         app.select_audio_files_for_stt = lambda *args, **kwargs: None
@@ -241,14 +220,14 @@ class MainFloatAudioOutputBridgeTests(unittest.TestCase):
 
         captured = {}
 
-        def fake_from_gemini_result(**kwargs):
+        def fake_from_model_result(**kwargs):
             captured["kwargs"] = kwargs
             return types.SimpleNamespace(ans="ok")
 
-        with patch.object(main.DataPacket, "from_gemini_result", side_effect=fake_from_gemini_result), patch.object(
+        with patch.object(main.DataPacket, "from_model_result", side_effect=fake_from_model_result), patch.object(
             main, "show_floating_window", side_effect=lambda _root, _packet: None
         ):
-            app._handle_gemini_result(
+            app._handle_model_result(
                 result={"text": "hello"},
                 timestamp_str="20260409_010101",
                 is_comparison_rerun=False,
@@ -347,7 +326,7 @@ class MainFloatAudioOutputBridgeTests(unittest.TestCase):
 
     def test_model_menu_uses_normalized_model_registry(self):
         app = main.ScreenshotApp.__new__(main.ScreenshotApp)
-        app.gemini = types.SimpleNamespace(model="a5k/qwen256a", provider="a5k")
+        app.model_client = types.SimpleNamespace(model="a5k/qwen256a", provider="a5k")
         app.config_manager = types.SimpleNamespace(
             get_all_models=lambda: {
                 "a5k/qwen256a": {},
@@ -383,7 +362,7 @@ class MainFloatAudioOutputBridgeTests(unittest.TestCase):
 
     def test_model_menu_stays_visible_when_no_models_are_found(self):
         app = main.ScreenshotApp.__new__(main.ScreenshotApp)
-        app.gemini = types.SimpleNamespace(model="", provider="")
+        app.model_client = types.SimpleNamespace(model="", provider="")
         app.config_manager = types.SimpleNamespace(
             get_all_models=lambda: {},
             get_provider_config=lambda provider_name: {},
@@ -404,7 +383,7 @@ class MainFloatAudioOutputBridgeTests(unittest.TestCase):
 
     def test_model_menu_title_does_not_show_unregistered_fallback_model(self):
         app = main.ScreenshotApp.__new__(main.ScreenshotApp)
-        app.gemini = types.SimpleNamespace(model="ghost/model", provider="ghost")
+        app.model_client = types.SimpleNamespace(model="ghost/model", provider="ghost")
         app.config_manager = types.SimpleNamespace(
             get_all_models=lambda: {},
             get=lambda key, default=None: "ghost/model"
@@ -416,7 +395,7 @@ class MainFloatAudioOutputBridgeTests(unittest.TestCase):
 
     def test_model_menu_title_shows_registered_model(self):
         app = main.ScreenshotApp.__new__(main.ScreenshotApp)
-        app.gemini = types.SimpleNamespace(model="a5k/qwen256a", provider="a5k")
+        app.model_client = types.SimpleNamespace(model="a5k/qwen256a", provider="a5k")
         app.config_manager = types.SimpleNamespace(
             get_all_models=lambda: {"a5k/qwen256a": {}},
             get=lambda key, default=None: default,

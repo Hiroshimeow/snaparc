@@ -12,7 +12,7 @@ Supports 2 Seamless Execution Modes:
      * If `len(plugin.params) > 0` -> opens `RadialParamPopup` with N parameter inputs
        pre-filled with last-used values (from `RadialParamStore`) or defaults.
 2. Mode 2 (Hold `Ctrl + Alt` + Drag File into Slice):
-   - Drag a file (`.pdf`, `.png`, `.jpg`, etc.) into a plugin slice (`pdf2png`, `png_resize`, etc.)
+   - Drag a file (`.png`, `.jpg`, etc.) into a plugin slice (for example `png_resize`)
      and release -> passes the file as input to the plugin and opens the compact parameter
      popup (e.g. `--dpi`, `--output-path` defaulting to root PDF folder, or `--size 0.1..3.0`).
 """

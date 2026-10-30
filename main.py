@@ -1,22 +1,3 @@
-# /// script
-# requires-python = ">=3.10"
-# dependencies = [
-#     "pystray",
-#     "pillow",
-#     "pyperclip",
-# #     "pynput",
-#     "keyboard",
-#     "python-dotenv",
-#     "requests",
-#     "customtkinter",
-#     "pyautogui",
-#     "openai",
-#     "pywebview",
-#     "numpy",
-#     "soundcard",
-#     "soundfile",
-# ]
-# ///
 
 # main.py — SnapArc v0.0.1
 import ctypes
@@ -30,7 +11,7 @@ import time
 import tkinter as tk
 
 from PIL import Image, ImageGrab
-from pystray import Icon, Menu, MenuItem
+from src.platform.win32_tray import Icon, Menu, MenuItem
 
 from src.core.event_bus import AppEventBus
 from src.core.memory_guard import MemoryGuard
@@ -43,7 +24,7 @@ except ImportError:
 from src.gui.quick_prompt_popup import QuickPromptPopup, QuickPromptSubmission
 from src.gui.radial_wheel import RadialWheelOverlay
 from src.handlers.InputHandler import InputHandler
-from src.models.Gemini import Gemini
+from src.llm.client import ModelClient
 from src.services.float_audio_actions import FloatAudioActionService
 from src.services.float_audio_service import FloatAudioOutputSink, FloatAudioSourceResolver
 from src.services.radial_plugin_service import RadialPluginResult, RadialPluginService, RadialPluginSpec
@@ -136,7 +117,7 @@ class ScreenshotApp:
         self.held_images = []
         self.screenshot_chat_module = None
         self.follow_manager = FollowManager(os.path.join(BASE_DIR, "config.yaml"))
-        self.gemini_start_time = None
+        self.model_start_time = None
         self.run_flag = 0  # 0=running, 1=paused
         self.current_icon = None
         self.restart_requested = False
@@ -157,16 +138,16 @@ class ScreenshotApp:
             "text_file_prompt": "FileQ&A",
         }
 
-        # --- Init Gemini ---
-        self.gemini = Gemini()
+        # --- Init model client ---
+        self.model_client = ModelClient(self.config_manager)
 
         # --- Load Config & Model List ---
         try:
-            self.config, _ = self.gemini._load_config()
+            self.config = self.model_client.load_settings()
             print("--- Config Loaded (v1.1) ---")
-            print(f"Initial Prompt Type: {self.gemini.prompt_type}")
-            print(f"Initial Model: {self.gemini.model}")
-            print(f"Initial Provider: {self.gemini.provider}")
+            print(f"Initial Prompt Type: {self.model_client.prompt_type}")
+            print(f"Initial Model: {self.model_client.model}")
+            print(f"Initial Provider: {self.model_client.provider}")
 
             ui_config = self.config_manager.get("ui") or {}
             animation_speed = float(ui_config.get("animation_speed", 0.1))
@@ -245,7 +226,7 @@ class ScreenshotApp:
             "prompt_translate": self.icon_trans,
             "prompt_extract_text": self.icon_spi,
         }
-        self.current_icon = prompt_icons.get(self.gemini.prompt_type, self.image)
+        self.current_icon = prompt_icons.get(self.model_client.prompt_type, self.image)
 
         # --- Setup Menu (Dynamic callable title fixes stuck model label bug!) ---
         provider_menus = self._build_provider_menus()
@@ -268,25 +249,25 @@ class ScreenshotApp:
                     self.icon_fix,
                     fix_prompt_key=1,
                 ),
-                checked=lambda item: self.gemini.prompt_type == "prompt_fix_grammar",
+                checked=lambda item: self.model_client.prompt_type == "prompt_fix_grammar",
                 radio=True,
             ),
             MenuItem(
                 "Sum",
                 partial(self.set_prompt_type, "prompt_summarize", self.icon_sum),
-                checked=lambda item: self.gemini.prompt_type == "prompt_summarize",
+                checked=lambda item: self.model_client.prompt_type == "prompt_summarize",
                 radio=True,
             ),
             MenuItem(
                 "Trans",
                 partial(self.set_prompt_type, "prompt_translate", self.icon_trans),
-                checked=lambda item: self.gemini.prompt_type == "prompt_translate",
+                checked=lambda item: self.model_client.prompt_type == "prompt_translate",
                 radio=True,
             ),
             MenuItem(
                 "Original",
                 partial(self.set_prompt_type, "prompt_extract_text", self.icon_spi),
-                checked=lambda item: self.gemini.prompt_type == "prompt_extract_text",
+                checked=lambda item: self.model_client.prompt_type == "prompt_extract_text",
                 radio=True,
             ),
             MenuItem("--- Actions ---", None, enabled=False),
@@ -346,10 +327,10 @@ class ScreenshotApp:
         self.float_audio_action_service = FloatAudioActionService(
             source_resolver=self.float_audio_source_resolver,
             output_sink=self.float_audio_output_sink,
-            model_resolver=self.gemini.audio_model_resolver,
-            transcribe_audio_fn=self.gemini.llm_service.process_audio,
+            model_resolver=self.model_client.audio_model_resolver,
+            transcribe_audio_fn=self.model_client.llm_service.process_audio,
             config_manager=self.config_manager,
-            postprocess_text_fn=self.gemini.llm_service.send_text_message,
+            postprocess_text_fn=self.model_client.llm_service.send_text_message,
         )
         self.input_handler.start_mouse_listener()
 
@@ -457,8 +438,8 @@ class ScreenshotApp:
             "cursor": [origin[0], origin[1]],
             "clipboard_text": clip_text,
             "files": list(files or []),
-            "model": self.gemini.model,
-            "provider": self.gemini.provider,
+            "model": self.model_client.model,
+            "provider": self.model_client.provider,
             "params": dict(param_values or {}),
         }
 
@@ -492,7 +473,7 @@ class ScreenshotApp:
 
         packet = DataPacket(
             ans=res.markdown,
-            model_name=self.gemini.model,
+            model_name=self.model_client.model,
             prompt_name=res.title or res.plugin_name,
             create_new=True,
             image_path=res.generated_files[0] if res.generated_files else "",
@@ -502,7 +483,6 @@ class ScreenshotApp:
             select_audio_files_callback=self.select_audio_files_for_stt,
             get_audio_duration_callback=self.recorder.get_duration,
             pause_audio_callback=self.toggle_pause_recording,
-            gemini_instance=self.gemini,
             toggle_follow_callback=self.toggle_follow_mode,
             get_follow_state_callback=self._get_follow_state,
             get_audio_stt_state_callback=self._get_audio_stt_state,
@@ -612,13 +592,13 @@ class ScreenshotApp:
             mode="text_file",
             initial_text=initial_text,
             initial_files=paths,
-            active_model_label=self.gemini.model,
+            active_model_label=self.model_client.model,
             on_escalate_pi=self._escalate_popup_to_pi_chat,
         ).show()
 
     def _start_text_processing(self, text_prompt: str, timestamp_str: str, prompt_type: str, source_label: str):
         self.animator.start_animation()
-        request_model_name = self.gemini.model
+        request_model_name = self.model_client.model
         request_prompt_name = self.PROMPT_DISPLAY_NAMES.get(prompt_type, "FileQ&A")
         follow_user_message = self._build_follow_text_request(prompt_type, text_prompt, source_label)
 
@@ -626,7 +606,7 @@ class ScreenshotApp:
             self._remember_follow_exchange(follow_user_message, result)
             self.root.after(
                 0,
-                self._handle_gemini_result,
+                self._handle_model_result,
                 result,
                 timestamp_str,
                 False,
@@ -636,7 +616,7 @@ class ScreenshotApp:
                 request_prompt_name,
             )
 
-        self.gemini.send_text_message(
+        self.model_client.send_text_message(
             text_prompt=text_prompt,
             callback=_cb,
             history=self.follow_manager.build_history(),
@@ -764,8 +744,8 @@ class ScreenshotApp:
                 project_root=BASE_DIR,
                 held_images_getter=self._get_held_images_snapshot,
                 held_images_consumer=self._consume_held_images,
-                llm_service=self.gemini.llm_service,
-                gemini_factory=lambda: self.gemini,
+                llm_service=self.model_client.llm_service,
+                model_client_factory=lambda: self.model_client,
                 model_state_store=getattr(self, "model_state_store", None),
             )
         return self.screenshot_chat_module
@@ -959,16 +939,16 @@ class ScreenshotApp:
         custom_prompt_text=None,
         source_label="Mouse snap",
     ):
-        self.gemini_start_time = time.time()
+        self.model_start_time = time.time()
         self.root.after(0, self.animator.start_animation)
-        follow_prompt_type = custom_prompt_type or self.gemini.prompt_type
+        follow_prompt_type = custom_prompt_type or self.model_client.prompt_type
         follow_history = self.follow_manager.build_history()
-        request_model_name = self.gemini.model
+        request_model_name = self.model_client.model
         request_prompt_name = self._format_follow_prompt_name(follow_prompt_type)
         request_prompt_text = (
             custom_prompt_text
             if isinstance(custom_prompt_text, str) and custom_prompt_text.strip()
-            else self.gemini.get_prompt(follow_prompt_type)
+            else self.model_client.get_prompt(follow_prompt_type)
         )
 
         main_path = save_paths[0] if isinstance(save_paths, list) and save_paths else save_paths
@@ -995,7 +975,7 @@ class ScreenshotApp:
     def _show_custom_prompt_for_capture(
         self, save_paths, timestamp_str, force_new_window, override_prompt=""
     ):
-        default_prompt = override_prompt or self.gemini.get_prompt(self.gemini.prompt_type)
+        default_prompt = override_prompt or self.model_client.get_prompt(self.model_client.prompt_type)
         paths = save_paths if isinstance(save_paths, list) else [save_paths]
 
         def on_submit(prompt_text, submission=None):
@@ -1025,7 +1005,7 @@ class ScreenshotApp:
             force_dialog=True,
             mode="image",
             initial_files=paths,
-            active_model_label=getattr(self.gemini, "model", ""),
+            active_model_label=getattr(self.model_client, "model", ""),
             on_escalate_pi=getattr(self, "_escalate_popup_to_pi_chat", None),
         )
 
@@ -1034,7 +1014,7 @@ class ScreenshotApp:
             self.config_manager.reload_if_changed()
         all_models = self.config_manager.get_all_models()
         self.all_models = all_models
-        current_model = str(getattr(self.gemini, "model", "") or "").strip()
+        current_model = str(getattr(self.model_client, "model", "") or "").strip()
         if not current_model:
             current_model = str(self.config_manager.get("agents.defaults.model.primary", "") or "").strip()
         if current_model and current_model in all_models:
@@ -1071,7 +1051,7 @@ class ScreenshotApp:
                     MenuItem(
                         text=model_name,
                         action=partial(self.set_model, full_name),
-                        checked=lambda item, fn=full_name: self.gemini.model == fn,
+                        checked=lambda item, fn=full_name: self.model_client.model == fn,
                         radio=True,
                     )
                 )
@@ -1080,7 +1060,7 @@ class ScreenshotApp:
                 MenuItem(
                     provider_display_names.get(provider_name, provider_name),
                     Menu(*model_items),
-                    checked=lambda item, pn=provider_name: self.gemini.provider == pn,
+                    checked=lambda item, pn=provider_name: self.model_client.provider == pn,
                 )
             )
 
@@ -1135,7 +1115,7 @@ class ScreenshotApp:
             "prompt_extract_text": self.icon_spi,
             "prompt_expert": self.image,
         }
-        if prompt_type in prompt_icons and prompt_type != self.gemini.prompt_type:
+        if prompt_type in prompt_icons and prompt_type != self.model_client.prompt_type:
             self.set_prompt_type(prompt_type, prompt_icons[prompt_type])
 
     def _process_clipboard(self, hotkey_config):
@@ -1184,9 +1164,9 @@ class ScreenshotApp:
         effective_prompt = (
             custom_system_prompt
             if has_custom_system_prompt
-            else self.gemini.get_prompt(prompt_type)
+            else self.model_client.get_prompt(prompt_type)
         )
-        request_model_name = self.gemini.model
+        request_model_name = self.model_client.model
         request_prompt_name = (
             hotkey_config.get("id")
             if has_custom_system_prompt
@@ -1221,10 +1201,10 @@ class ScreenshotApp:
         if isinstance(img, Image.Image):
             self.animator.start_animation()
 
-            self.gemini.process_image(
+            self.model_client.process_image(
                 img,
                 callback=partial(
-                    self.gemini_callback,
+                    self.model_callback,
                     timestamp_str=timestamp_str,
                     is_comparison_rerun=False,
                     force_new_window=True,
@@ -1249,7 +1229,7 @@ class ScreenshotApp:
                 self._remember_follow_exchange(follow_user_message, result)
                 self.root.after(
                     0,
-                    self._handle_gemini_result,
+                    self._handle_model_result,
                     result,
                     timestamp_str,
                     False,
@@ -1265,7 +1245,7 @@ class ScreenshotApp:
                 f"Hotkey {hotkey_config.get('id', '')}".strip(),
             )
 
-            self.gemini.send_text_message(
+            self.model_client.send_text_message(
                 text_prompt=f"{effective_prompt}\n\nContent:\n{text}",
                 callback=_cb,
                 history=self.follow_manager.build_history(),
@@ -1292,7 +1272,7 @@ class ScreenshotApp:
         if hasattr(self.config_manager, "reload_if_changed"):
             self.config_manager.reload_if_changed()
         self.all_models = self.config_manager.get_all_models()
-        self.gemini.set_model(model_full_name)
+        self.model_client.set_model(model_full_name)
         if hasattr(self, "model_state_store") and self.model_state_store is not None:
             self.model_state_store.set_model(model_full_name, source="tray", persist=True)
         if getattr(self, "icon", None) is not None and hasattr(self.icon, "update_menu"):
@@ -1308,7 +1288,7 @@ class ScreenshotApp:
     ):
         if fix_prompt_key == 1:
             try:
-                prompt_text_to_edit = self.gemini.get_prompt(prompt_key, fallback_key=None)
+                prompt_text_to_edit = self.model_client.get_prompt(prompt_key, fallback_key=None)
                 if not prompt_text_to_edit or not prompt_text_to_edit.strip():
                     prompt_text_to_edit = "Default prompt text not found."
             except Exception as e:
@@ -1317,7 +1297,7 @@ class ScreenshotApp:
 
             editor_packet = DataPacket(
                 ans=prompt_text_to_edit,
-                model_name=self.gemini.model,
+                model_name=self.model_client.model,
                 prompt_name="Fix Prompt",
                 create_new=True,
                 image_path="",
@@ -1332,7 +1312,6 @@ class ScreenshotApp:
                 select_audio_files_callback=self.select_audio_files_for_stt,
                 get_audio_duration_callback=self.recorder.get_duration,
                 pause_audio_callback=self.toggle_pause_recording,
-                gemini_instance=self.gemini,
                 skip_history=True,
                 toggle_follow_callback=self.toggle_follow_mode,
                 get_follow_state_callback=self._get_follow_state,
@@ -1340,14 +1319,13 @@ class ScreenshotApp:
             )
             show_floating_window(self.root, editor_packet)
 
-        self.gemini.prompt_type = prompt_key
+        self.model_client.set_prompt_type(prompt_key)
         self.current_icon = new_icon
         if self.run_flag == 0:
             self.animator.current_icon = new_icon
         if self.run_flag == 0 and self.icon:
             self.icon.icon = self.current_icon
         print(f"Prompt type set to: {prompt_key}")
-        self.gemini._save_config()
 
     TRAY_LEFT_CLICK_ACTIONS = ("toggle_pause", "none")
 
@@ -1432,9 +1410,9 @@ class ScreenshotApp:
 
         help_text = "=== SNAPARC v0.0.1 ===\n\n"
         help_text += "--- Current Settings ---\n"
-        help_text += f"Provider: {self.gemini.provider}\n"
-        help_text += f"Model: {self.gemini.model}\n"
-        help_text += f"Default Prompt: {self.gemini.prompt_type}\n\n"
+        help_text += f"Provider: {self.model_client.provider}\n"
+        help_text += f"Model: {self.model_client.model}\n"
+        help_text += f"Default Prompt: {self.model_client.prompt_type}\n\n"
 
         help_text += "--- Mouse & Modifier Shortcuts ---\n"
         help_text += "- Right-Drag: Capture & process screen region\n"
@@ -1560,13 +1538,13 @@ class ScreenshotApp:
         request_model_name=None,
         request_prompt_name=None,
     ):
-        request_model_name = request_model_name or self.gemini.model
+        request_model_name = request_model_name or self.model_client.model
         if request_prompt_name is None:
             request_prompt_name = self._format_follow_prompt_name(
-                custom_prompt_type or self.gemini.prompt_type
+                custom_prompt_type or self.model_client.prompt_type
             )
         callback = partial(
-            self.gemini_callback,
+            self.model_callback,
             timestamp_str=timestamp_str,
             is_comparison_rerun=is_comparison_rerun,
             force_new_window=force_new_window,
@@ -1575,7 +1553,7 @@ class ScreenshotApp:
             request_model_name=request_model_name,
             request_prompt_name=request_prompt_name,
         )
-        self.gemini.process_image(
+        self.model_client.process_image(
             image_path,
             callback=callback,
             history=history,
@@ -1584,7 +1562,7 @@ class ScreenshotApp:
             model_full_name=request_model_name,
         )
 
-    def gemini_callback(
+    def model_callback(
         self,
         result,
         timestamp_str,
@@ -1598,7 +1576,7 @@ class ScreenshotApp:
         self._remember_follow_exchange(follow_user_message, result)
         self.root.after(
             0,
-            self._handle_gemini_result,
+            self._handle_model_result,
             result,
             timestamp_str,
             is_comparison_rerun,
@@ -1608,7 +1586,7 @@ class ScreenshotApp:
             request_prompt_name,
         )
 
-    def _handle_gemini_result(
+    def _handle_model_result(
         self,
         result,
         timestamp_str,
@@ -1627,12 +1605,12 @@ class ScreenshotApp:
             )
             save_path = clip_path if os.path.exists(clip_path) else ""
 
-        current_prompt_type = custom_prompt_type or self.gemini.prompt_type
-        request_model_name = request_model_name or self.gemini.model
+        current_prompt_type = custom_prompt_type or self.model_client.prompt_type
+        request_model_name = request_model_name or self.model_client.model
         request_prompt_name = request_prompt_name or self.PROMPT_DISPLAY_NAMES.get(
             current_prompt_type, current_prompt_type
         )
-        packet = DataPacket.from_gemini_result(
+        packet = DataPacket.from_model_result(
             result=result,
             timestamp_str=timestamp_str,
             save_path=save_path,
@@ -1641,14 +1619,13 @@ class ScreenshotApp:
             model_name=request_model_name,
             prompt_name=request_prompt_name,
             rerun_callback_provider=partial(
-                self.rerun_gemini_processing, is_comparison_rerun=True
+                self.rerun_model_processing, is_comparison_rerun=True
             ),
             record_audio_callback_provider=self.toggle_audio_recording,
             transcribe_callback_provider=self.capture_transcribe_snapshot,
             select_audio_files_callback_provider=self.select_audio_files_for_stt,
             get_audio_duration_callback_provider=self.recorder.get_duration,
             pause_audio_callback_provider=self.toggle_pause_recording,
-            gemini_instance=self.gemini,
             toggle_follow_callback_provider=self.toggle_follow_mode,
             get_follow_state_callback_provider=self._get_follow_state,
             get_audio_stt_state_callback_provider=self._get_audio_stt_state,
@@ -1663,16 +1640,16 @@ class ScreenshotApp:
             self.memory_guard.on_capture_completed(FLOAT_WINDOW_LIST, self.screenshots_dir)
 
         show_floating_window(self.root, packet)
-        self._refresh_float_window_models(self.gemini.model)
+        self._refresh_float_window_models(self.model_client.model)
 
-    def rerun_gemini_processing(self, image_path, timestamp_str, is_comparison_rerun):
+    def rerun_model_processing(self, image_path, timestamp_str, is_comparison_rerun):
         if not os.path.exists(image_path):
             return
         self.root.after(0, self.animator.start_animation)
-        follow_prompt_type = self.gemini.prompt_type
-        request_model_name = self.gemini.model
+        follow_prompt_type = self.model_client.prompt_type
+        request_model_name = self.model_client.model
         request_prompt_name = self._format_follow_prompt_name(follow_prompt_type)
-        request_prompt_text = self.gemini.get_prompt(follow_prompt_type)
+        request_prompt_text = self.model_client.get_prompt(follow_prompt_type)
         threading.Thread(
             target=self._process_image_async,
             args=(
@@ -1738,7 +1715,7 @@ class ScreenshotApp:
 
     def capture_transcribe_snapshot(self, window_instance):
         self.float_audio_action_service.transcribe_latest(
-            selected_model=self.gemini.model,
+            selected_model=self.model_client.model,
             window_instance=window_instance,
         )
         return False
@@ -1746,7 +1723,7 @@ class ScreenshotApp:
     def select_audio_files_for_stt(self, parent=None):
         return self.float_audio_action_service.transcribe_selected_files(
             parent=parent or self.root,
-            selected_model=self.gemini.model,
+            selected_model=self.model_client.model,
         )
 
     def _get_audio_stt_state(self):
@@ -1793,7 +1770,7 @@ class ScreenshotApp:
     def _create_float_stt_window(self):
         packet = DataPacket(
             ans="",
-            model_name=self.gemini.model,
+            model_name=self.model_client.model,
             prompt_name="STT",
             create_new=True,
             skip_history=True,
@@ -1802,7 +1779,6 @@ class ScreenshotApp:
             select_audio_files_callback=self.select_audio_files_for_stt,
             get_audio_duration_callback=self.recorder.get_duration,
             pause_audio_callback=self.toggle_pause_recording,
-            gemini_instance=self.gemini,
             toggle_follow_callback=self.toggle_follow_mode,
             get_follow_state_callback=self._get_follow_state,
             get_audio_stt_state_callback=self._get_audio_stt_state,

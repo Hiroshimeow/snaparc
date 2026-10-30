@@ -1,14 +1,13 @@
-# Screens-Trans-Chatbot v2.4 — Dynamic Radial Plugin Wheel Configuration (Ctrl + Alt)
+# SnapArc v0.0.1 — Dynamic Radial Plugin Wheel Configuration (Ctrl + Alt)
 # ====================================================================================
 # Supports 2 primary workflows:
 # 1. Mode 1 (Click & Drag Slice): Hold Ctrl + Alt, hold Left Mouse and drag into a slice
 #    to launch an app or script (e.g. `uv run plugins/a.py --root 11235813x --host 0.0.0.0`).
 #    - 0 params -> executes immediately!
 #    - N params -> opens dynamic Parameter Popup pre-filled with defaults & last-used values!
-# 2. Mode 2 (File Drag & Drop into Slice): Hold Ctrl + Alt and drag a file (.pdf, .png, .jpg)
-#    into a plugin slice (e.g. `pdf2png`, `png_resize`) and release.
-#    - Passes the dragged file as input and pops up compact parameter UI (e.g. `--dpi`,
-#      `--output-path` defaulting to root file folder, `--size` from 0.1 to 3.0).
+# 2. Mode 2 (File Drag & Drop into Slice): Hold Ctrl + Alt and drag a file (.png, .jpg)
+#    into a plugin slice (e.g. `png_resize`) and release.
+#    - Passes the dragged file as input and pops up compact parameter UI (e.g. `--output-path` and `--size`).
 
 wheel:
   hold_seconds: 0.18
@@ -25,37 +24,6 @@ wheel:
   subtext_color: "#38bdf8"
 
 plugins:
-  - id: pdf2png
-    name: "PDF -> PNG"
-    icon: "📄"
-    badge: "PDF"
-    description: "Convert dragged/selected PDF into PNG pages (--dpi & --output-path)"
-    script: "plugins/pdf2png.py"
-    input_mode: "file"
-    file_extensions:
-      - ".pdf"
-    output_mode: "floating"
-    timeout_sec: 60
-    params:
-      - name: dpi
-        flag: "--dpi"
-        label: "Resolution DPI (--dpi)"
-        type: int
-        default: 150
-        min: 72
-        max: 600
-        choices:
-          - "72"
-          - "150"
-          - "200"
-          - "300"
-          - "600"
-      - name: output_path
-        flag: "--output-path"
-        label: "Output Path (default = root PDF)"
-        type: path
-        default: "{file_dir}"
-
   - id: png_resize
     name: "Image Resize"
     icon: "🖼️"

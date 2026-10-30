@@ -17,7 +17,7 @@ from src.core.ocr_pipeline import (
     ScreenshotComparator,
     ScreenshotDiffResult,
 )
-from src.core.privacy_gate import ConsentScope, PrivacyConsentGate, TokenBudgetController, UsageRecord
+from src.core.privacy_gate import ConsentScope, PrivacyConsentGate
 from src.core.secret_store import SecretRedactor, SecretStore
 from src.core.singleton_guard import CrashRecoveryJournal, SingleInstanceGuard
 from src.core.skills_mcp import MCPClientAdapter, SkillPlugin, SkillRegistry
@@ -45,8 +45,6 @@ __all__ = [
     "SingleInstanceGuard",
     "SkillPlugin",
     "SkillRegistry",
-    "TokenBudgetController",
-    "UsageRecord",
     "VirtualScreenTopology",
     "WindowMoveSafeCapturer",
 ]

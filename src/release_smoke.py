@@ -104,7 +104,7 @@ def run_release_smoke(report_path: str | None = None) -> int:
         "checks": {},
     }
     try:
-        import pystray  # noqa: F401
+        from src.platform.win32_tray import Icon  # noqa: F401
         import webview  # noqa: F401
         import soundcard  # noqa: F401
         import soundfile  # noqa: F401

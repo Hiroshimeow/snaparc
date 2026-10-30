@@ -8,18 +8,6 @@ from src.utils.yaml_io import dump_yaml_or_json, load_yaml_or_json
 class ConfigManager:
     _instance = None
     _lock = threading.Lock()
-    _KNOWN_PROVIDER_DEFAULTS = {
-        "cliproxy": {
-            "api": "openai-completions",
-            "platform": "openai",
-            "displayName": "CLIProxy / OpenAI-Compatible API",
-            "baseUrl": "",
-            "supportsImages": True,
-            "supportsAudio": True,
-            "models": ["gpt-5.4", "claude-sonnet-4-6", "gemini-2.5-pro", "gemini-2.5-flash", "gpt-4o-mini"],
-        }
-    }
-
     def __new__(cls, *args, **kwargs):
         with cls._lock:
             if cls._instance is None:
@@ -30,9 +18,6 @@ class ConfigManager:
     def __init__(self, config_path="config.yaml"):
         if self._initialized:
             return
-        p = Path(config_path)
-        if not p.exists() and p.name == "stc.json" and p.with_name("config.yaml").exists():
-            config_path = str(p.with_name("config.yaml"))
         self.config_path = config_path
         self.config = {}
         self._io_lock = threading.Lock()
@@ -94,7 +79,6 @@ class ConfigManager:
                 "recording": {"max_minutes": 10},
                 "stt": {
                     "preferred_model": "",
-                    "fallback_model": "cliproxy/gemini-2.5-flash",
                     "audio_capable_models": [],
                     "max_retry": 2,
                     "continue_on_error": True,
@@ -104,7 +88,6 @@ class ConfigManager:
                 "defaults": {
                     "model": {
                         "primary": "",
-                        "fallbacks": [],
                     },
                     "prompt_type": "prompt_translate",
                 }
@@ -185,14 +168,6 @@ class ConfigManager:
             providers = {}
             models_config["providers"] = providers
 
-        legacy_providers = self.config.get("providers")
-        if isinstance(legacy_providers, dict):
-            for provider_name, provider_config in legacy_providers.items():
-                if isinstance(provider_config, dict) and provider_name not in providers:
-                    providers[provider_name] = dict(provider_config)
-
-        self._ensure_known_referenced_providers(providers)
-
         for provider_name, provider_config in list(providers.items()):
             if isinstance(provider_config, dict):
                 self._normalize_provider_config(provider_name, provider_config)
@@ -209,117 +184,26 @@ class ConfigManager:
         if not isinstance(model_defaults, dict):
             model_defaults = {}
             defaults["model"] = model_defaults
-        model_defaults.setdefault("fallbacks", [])
 
-        primary = model_defaults.get("primary")
-        normalized_primary = self._normalize_model_name(primary, providers)
-        if normalized_primary:
-            model_defaults["primary"] = normalized_primary
-        else:
-            first_model = self._first_provider_model(providers)
-            model_defaults["primary"] = first_model or ""
-
-        fallbacks = model_defaults.get("fallbacks")
-        if not isinstance(fallbacks, list):
-            fallbacks = []
-        model_defaults["fallbacks"] = [
-            normalized
-            for normalized in (self._normalize_model_name(item, providers) for item in fallbacks)
-            if normalized
-        ]
+        primary = self._normalize_model_name(model_defaults.get("primary"), providers)
+        model_defaults["primary"] = primary
         defaults.setdefault("prompt_type", "prompt_translate")
 
-    def _ensure_known_referenced_providers(self, providers):
-        for full_name in self._referenced_full_model_names():
-            provider_name, _, model_name = full_name.partition("/")
-            if not provider_name or not model_name or provider_name in providers:
-                continue
-            defaults = self._KNOWN_PROVIDER_DEFAULTS.get(provider_name)
-            if defaults is None:
-                continue
-            provider_config = dict(defaults)
-            models = list(provider_config.get("models") or [])
-            if model_name not in models:
-                models.append(model_name)
-            provider_config["models"] = models
-            providers[provider_name] = provider_config
-
-    def _referenced_full_model_names(self):
-        refs = []
-
-        def add(value):
-            if isinstance(value, str):
-                value = value.strip()
-                if "/" in value and value.partition("/")[2]:
-                    refs.append(value)
-
-        model_defaults = (((self.config.get("agents") or {}).get("defaults") or {}).get("model") or {})
-        if isinstance(model_defaults, dict):
-            add(model_defaults.get("primary"))
-            fallbacks = model_defaults.get("fallbacks")
-            if isinstance(fallbacks, list):
-                for fallback in fallbacks:
-                    add(fallback)
-
-        chat_config = self.config.get("screenshot_chat")
-        if isinstance(chat_config, dict):
-            add(chat_config.get("default_model"))
-            agents = chat_config.get("agents")
-            if isinstance(agents, dict):
-                for agent_config in agents.values():
-                    if isinstance(agent_config, dict):
-                        add(agent_config.get("model"))
-
-        stt_config = ((self.config.get("audio") or {}).get("stt") or {})
-        if isinstance(stt_config, dict):
-            add(stt_config.get("preferred_model"))
-            add(stt_config.get("fallback_model"))
-            postprocess = stt_config.get("postprocess")
-            if isinstance(postprocess, dict):
-                add(postprocess.get("model"))
-
-        return refs
-
     def _normalize_provider_config(self, provider_name, provider_config):
-        alias_map = {
-            "api_mode": "api",
-            "base_url": "baseUrl",
-            "api" + "_key": "apiKey",
-            "extra_headers": "extraHeaders",
-            "display_name": "displayName",
-            "trust_env": "trustEnv",
-            "supports_images": "supportsImages",
-            "supports_audio": "supportsAudio",
-        }
-        for legacy_key, canonical_key in alias_map.items():
-            if canonical_key not in provider_config and legacy_key in provider_config:
-                provider_config[canonical_key] = provider_config[legacy_key]
-
         provider_config["api"] = self._normalize_provider_api(provider_config.get("api"))
-        provider_config["platform"] = "openai"
+        provider_config["platform"] = "openai-compatible"
 
-        models = []
         raw_models = provider_config.get("models")
         if isinstance(raw_models, str):
             raw_models = [raw_models]
-        if isinstance(raw_models, list):
-            models.extend(raw_models)
-        for legacy_model_key in ("default_model", "defaultModel", "model"):
-            legacy_model = provider_config.get(legacy_model_key)
-            if isinstance(legacy_model, str) and legacy_model.strip():
-                models.append(legacy_model)
-        provider_config["models"] = self._dedupe_model_names(provider_name, models)
+        provider_config["models"] = self._dedupe_model_names(
+            provider_name,
+            raw_models if isinstance(raw_models, list) else [],
+        )
 
-    def _normalize_provider_api(self, api):
-        value = str(api or "openai-completions").strip().lower()
-        aliases = {
-            "chat_completions",
-            "chat-completions",
-            "openai_chat_completions",
-        }
-        if value in aliases:
-            return "openai-completions"
-        return value or "openai-completions"
+    @staticmethod
+    def _normalize_provider_api(api):
+        return str(api or "").strip().lower()
 
     def _dedupe_model_names(self, provider_name, model_names):
         seen = set()
@@ -345,51 +229,15 @@ class ConfigManager:
             return ""
         selected = selected.strip()
         provider_name, separator, model_name = selected.partition("/")
-        if separator and model_name:
-            provider_config = providers.get(provider_name)
-            if not isinstance(provider_config, dict):
-                return ""
-            models = provider_config.setdefault("models", [])
-            if not isinstance(models, list):
-                provider_config["models"] = []
-                models = provider_config["models"]
-            if model_name not in models:
-                models.append(model_name)
-            return selected
-
-        for candidate_provider, provider_config in providers.items():
-            if not isinstance(provider_config, dict):
-                continue
-            models = provider_config.get("models")
-            if isinstance(models, list) and selected in models:
-                return f"{candidate_provider}/{selected}"
-
-        provider_items = [
-            (provider_name, provider_config)
-            for provider_name, provider_config in providers.items()
-            if isinstance(provider_config, dict)
-        ]
-        if len(provider_items) == 1:
-            provider_name, provider_config = provider_items[0]
-            models = provider_config.setdefault("models", [])
-            if not isinstance(models, list):
-                provider_config["models"] = []
-                models = provider_config["models"]
-            if selected not in models:
-                models.append(selected)
-            return f"{provider_name}/{selected}"
-        return ""
-
-    def _first_provider_model(self, providers):
-        for provider_name, provider_config in providers.items():
-            if not isinstance(provider_config, dict):
-                continue
-            models = provider_config.get("models")
-            if isinstance(models, list) and models:
-                first = models[0]
-                if isinstance(first, str) and first.strip():
-                    return f"{provider_name}/{first.strip()}"
-        return ""
+        if not separator or not provider_name or not model_name:
+            return ""
+        provider_config = providers.get(provider_name)
+        if not isinstance(provider_config, dict):
+            return ""
+        models = provider_config.get("models")
+        if not isinstance(models, list) or model_name not in models:
+            return ""
+        return selected
 
     def _apply_screenshot_chat_defaults(self):
         defaults = self._get_default_screenshot_chat_config()
@@ -505,7 +353,6 @@ class ConfigManager:
     def _apply_audio_stt_defaults(self):
         default_stt = {
             "preferred_model": "",
-            "fallback_model": "cliproxy/gemini-2.5-flash",
             "audio_capable_models": [],
             "max_retry": 2,
             "continue_on_error": True,
@@ -593,29 +440,26 @@ class ConfigManager:
             self._save_config_unlocked()
 
     def add_provider_model(self, model_full_name: str) -> str:
-        """Register a custom or discovered `provider/model` in config.yaml and return its normalized name."""
+        """Add a model to an existing provider declared in config.yaml."""
         clean = str(model_full_name or "").strip()
         if not clean:
             return ""
         with self._io_lock:
             providers = self.config.setdefault("models", {}).setdefault("providers", {})
+            if not isinstance(providers, dict) or not providers:
+                return ""
             if "/" in clean:
                 prov_name, _, mod_name = clean.partition("/")
             else:
-                prov_name = next(iter(providers.keys()), "cliproxy")
+                prov_name = next(iter(providers.keys()))
                 mod_name = clean
                 clean = f"{prov_name}/{mod_name}"
-            prov = providers.setdefault(
-                prov_name,
-                {
-                    "api": "openai-completions",
-                    "displayName": prov_name,
-                    "baseUrl": "",
-                    "apiKey": "",
-                    "models": [],
-                },
-            )
-            models = prov.setdefault("models", [])
+            prov = providers.get(prov_name)
+            if not isinstance(prov, dict):
+                return ""
+            models = prov.get("models")
+            if not isinstance(models, list):
+                return ""
             if mod_name not in models:
                 models.append(mod_name)
                 self._save_config_unlocked()
@@ -623,8 +467,6 @@ class ConfigManager:
 
     def get_provider_config(self, provider_name):
         config = self.get(f"models.providers.{provider_name}")
-        if not isinstance(config, dict):
-            config = self.get(f"providers.{provider_name}")
         if isinstance(config, dict):
             normalized = dict(config)
             self._normalize_provider_config(provider_name, normalized)
@@ -636,10 +478,6 @@ class ConfigManager:
         providers = self.get("models.providers")
         if not isinstance(providers, dict):
             providers = {}
-        legacy_providers = self.get("providers")
-        if isinstance(legacy_providers, dict):
-            providers = {**legacy_providers, **providers}
-
         for p_name, p_config in providers.items():
             if not isinstance(p_config, dict):
                 continue
@@ -652,6 +490,6 @@ class ConfigManager:
                     "model": m_name,
                     "baseUrl": provider_copy.get("baseUrl"),
                     "apiKey": provider_copy.get("apiKey"),
-                    "api": "openai-completions",
+                    "api": provider_copy.get("api"),
                 }
         return models

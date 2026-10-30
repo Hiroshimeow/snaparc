@@ -16,7 +16,7 @@ from src.gui.screenshot_chat.models import (
     ScreenshotChatResponder,
     ScreenshotChatSession,
 )
-from src.models.Gemini import Gemini
+from src.llm.client import ModelClient
 from src.llm.service import LLMService
 
 
@@ -46,12 +46,12 @@ class ScreenshotChatRunner:
         self,
         event_queue: queue.Queue | None = None,
         llm_service: LLMService | None = None,
-        gemini_factory: Callable[[], Gemini] | None = None,
+        model_client_factory: Callable[[], ModelClient] | None = None,
         pi_runtime_factory: PiRuntimeFactory | Callable | None = None,
     ):
         self.event_queue = event_queue or queue.Queue()
         self.llm_service = llm_service
-        self.gemini_factory = gemini_factory or Gemini
+        self.model_client_factory = model_client_factory or ModelClient
         self._cancel_lock = threading.Lock()
         self._cancel_flags: dict[str, threading.Event] = {}
         self.pi_runtime_factory = pi_runtime_factory
@@ -257,7 +257,7 @@ class ScreenshotChatRunner:
                 self._emit("job_finished", session.id, job.id, responder.name, user_message.id)
                 self._forget_cancel_flag(job.id)
                 return
-            bot = self.llm_service or self.gemini_factory()
+            bot = self.llm_service or self.model_client_factory()
             uses_shared_service = self.llm_service is not None
             if model_name and hasattr(bot, "set_model") and not uses_shared_service:
                 bot.set_model(model_name)

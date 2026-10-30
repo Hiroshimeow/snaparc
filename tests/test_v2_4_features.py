@@ -11,13 +11,12 @@ Tests all user-requested v2.4 features:
 2. Mode 2 Radial Wheel (`Ctrl + Alt + File Drag-and-Drop`):
    - `InputHandler` triggers Radial Wheel both when pressing `Ctrl + Alt` then dragging mouse AND
      when holding Left Mouse to drag a file then pressing `Ctrl + Alt`.
-   - `pdf2png` plugin receives dragged `.pdf` file, defaults `--output-path` to `{file_dir}` (root PDF folder),
      accepts `--dpi`, and outputs PNG images into the PDF directory.
    - `png_resize` plugin receives dragged `.png` file, defaults `--output-path` to `{file_dir}`,
      validates `--size` in `[0.1, 3.0]` (10% to 300%), and outputs resized image with exact dimensions.
 3. Chatbot Overhaul & Single OpenAI-Compatible API Path (`openai-completions`):
    - Pi Sidecar is the primary runtime mode (`pi_primary_mode = True`).
-   - `available_models()` exposes real selectable models (`cliproxy/gpt-5.4`, `cliproxy/claude-sonnet-4-6`, etc.)
+   - `available_models()` exposes only models declared by the user in config.yaml
      without locking the user onto a dummy `pi://agent/pi` entry.
    - `set_model()` and `register_custom_model()` allow seamless model switching in Pi Sidecar mode.
    - `NativePiRpcServer` runs a real OpenAI-compatible Chat Completions agent loop with workspace tools.
@@ -170,35 +169,6 @@ class TestV24RadialWheelAndPlugins(unittest.TestCase):
         with Image.open(out_3x) as im:
             self.assertEqual(im.size, (300, 240))
 
-    def test_06_mode2_file_drag_pdf2png_defaults_output_to_root_pdf_dir_and_uses_dpi(self) -> None:
-        pdf_dir = self.tmp_path / "pdf_root_folder"
-        pdf_dir.mkdir(parents=True, exist_ok=True)
-        sample_pdf = pdf_dir / "document.pdf"
-        sample_pdf.write_bytes(
-            b"%PDF-1.4\n"
-            b"1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n"
-            b"2 0 obj<</Type/Pages/Count 1/Kids[3 0 R]>>endobj\n"
-            b"3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 200 200]>>endobj\n"
-            b"xref\n0 4\n0000000000 65535 f \n"
-            b"0000000009 00000 n \n0000000052 00000 n \n0000000101 00000 n \n"
-            b"trailer<</Size 4/Root 1 0 R>>\nstartxref\n165\n%%EOF\n"
-        )
-
-        prefilled = self.service.get_prefilled_params("pdf2png", active_files=[str(sample_pdf)])
-        self.assertEqual(prefilled["dpi"], "150")
-        self.assertEqual(Path(prefilled["output_path"]).resolve(), pdf_dir.resolve())
-
-        res = self.service.execute_plugin(
-            "pdf2png",
-            context={"files": [str(sample_pdf)]},
-            param_overrides={"dpi": "200", "output_path": str(pdf_dir)},
-        )
-        self.assertTrue(res.ok, res.markdown)
-        self.assertTrue(len(res.generated_files) >= 1)
-        out_png = Path(res.generated_files[0])
-        self.assertTrue(out_png.is_file())
-        self.assertEqual(out_png.parent.resolve(), pdf_dir.resolve())
-
     def test_07_input_handler_supports_both_ctrl_alt_click_and_file_drag_into_ctrl_alt(self) -> None:
         opened = []
         moved = []
@@ -214,9 +184,9 @@ class TestV24RadialWheelAndPlugins(unittest.TestCase):
             radial_hold_seconds=0.01,
         )
 
-        from pynput import mouse
-        handler.on_click(100, 100, mouse.Button.left, True)
-        self.assertEqual(handler._held_mouse_button, mouse.Button.left)
+        from src.platform.win32_mouse import Button
+        handler.on_click(100, 100, Button.left, True)
+        self.assertEqual(handler._held_mouse_button, Button.left)
         self.assertFalse(handler._radial_active)
 
         key_state["ctrl"] = True
@@ -226,7 +196,7 @@ class TestV24RadialWheelAndPlugins(unittest.TestCase):
         self.assertEqual(opened[-1], (140, 120))
 
         handler.on_move(180, 120)
-        handler.on_click(180, 120, mouse.Button.left, False)
+        handler.on_click(180, 120, Button.left, False)
         self.assertEqual(released[-1], (180, 120))
 
 
@@ -237,14 +207,13 @@ class TestV24PiSidecarPrimaryAndSingleOpenAIPath(unittest.TestCase):
         deps = " ".join(pyproject_data["project"].get("dependencies", []))
         self.assertNotIn("google-genai", deps)
 
-        self.assertFalse((REPO_ROOT / "src" / "llm" / "providers" / "gemini.py").exists())
-        self.assertFalse((REPO_ROOT / "src" / "llm" / "providers" / "oath.py").exists())
+        self.assertFalse((REPO_ROOT / "src" / "models" / "Gemini.py").exists())
+        self.assertFalse((REPO_ROOT / "src" / "llm" / "providers" / "openai.py").exists())
 
         cfg_data = load_yaml_or_json((REPO_ROOT / "sample" / "config.example.yaml").read_text(encoding="utf-8"))
         providers = cfg_data.get("models", {}).get("providers", {})
-        self.assertIn("cliproxy", providers)
-        self.assertNotIn("google-gemini-cli", providers)
-        self.assertNotIn("openai", providers)
+        self.assertEqual(set(providers), {"my-provider"})
+        self.assertEqual(providers["my-provider"]["models"], ["example-model"])
         for p_cfg in providers.values():
             self.assertEqual(p_cfg.get("api"), "openai-completions")
 
@@ -266,19 +235,14 @@ class TestV24PiSidecarPrimaryAndSingleOpenAIPath(unittest.TestCase):
             try:
                 self.assertTrue(ctrl.pi_primary_mode)
                 models = ctrl.available_models()
-                self.assertIn("cliproxy/gpt-5.4", models)
-                self.assertIn("cliproxy/claude-sonnet-4-6", models)
-                self.assertIn("cliproxy/gemini-2.5-pro", models)
+                self.assertIn("my-provider/example-model", models)
                 self.assertTrue(all(not m.startswith("pi://") for m in models))
 
-                ctrl.set_model("cliproxy/claude-sonnet-4-6")
-                self.assertEqual(ctrl.current_model, "cliproxy/claude-sonnet-4-6")
-                self.assertEqual(ctrl.get_active_session().model_name, "cliproxy/claude-sonnet-4-6")
-
-                added = ctrl.register_custom_model("deepseek-r1")
-                self.assertEqual(added, "cliproxy/deepseek-r1")
-                self.assertIn("cliproxy/deepseek-r1", ctrl.available_models())
-                self.assertEqual(ctrl.current_model, "cliproxy/deepseek-r1")
+                added = ctrl.register_custom_model("second-model")
+                self.assertEqual(added, "my-provider/second-model")
+                self.assertIn("my-provider/second-model", ctrl.available_models())
+                self.assertEqual(ctrl.current_model, "my-provider/second-model")
+                self.assertEqual(ctrl.get_active_session().model_name, "my-provider/second-model")
             finally:
                 ctrl.shutdown()
                 ConfigManager._instance = None
@@ -288,7 +252,6 @@ class TestV24PiSidecarPrimaryAndSingleOpenAIPath(unittest.TestCase):
         toolkit = PiTerminalToolset(cwd=str(REPO_ROOT))
         res = toolkit.execute("ls", {"path": "plugins"})
         ls_out = json.dumps(res)
-        self.assertIn("pdf2png.py", ls_out)
         self.assertIn("png_resize.py", ls_out)
         self.assertIn("a.py", ls_out)
 

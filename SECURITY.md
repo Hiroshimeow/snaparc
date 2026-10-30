@@ -59,8 +59,8 @@ source-only alpha itself.
 
 A future portable binary or production installer has additional requirements:
 clean-machine Windows acceptance, interactive capture/hotkey/audio/WebView/IME
-tests, LGPL/PDFium redistribution compliance, artifact hashes, and later
-signing/install/uninstall/update-integrity validation.
+tests, a complete transitive dependency/license redistribution audit, artifact
+hashes, and later signing/install/uninstall/update-integrity validation.
 
 Do not label the experimental PyInstaller build production-ready or attach it
 to the v0.0.1 source release.

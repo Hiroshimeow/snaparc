@@ -1,4 +1,4 @@
-﻿import os
+import os
 import unittest
 from unittest import mock
 
@@ -73,7 +73,7 @@ class SnapArcSecurityBoundaryTests(unittest.TestCase):
         for value in (None, "true", 1, "yes", False):
             service = LLMService(config_manager=Config(value))
             self.assertIsNone(service._get_provider("cloud", "test"), value)
-        with mock.patch("src.llm.service.OpenAICompatibleProvider") as constructor:
+        with mock.patch("src.llm.service.ChatCompletionsProvider") as constructor:
             service = LLMService(config_manager=Config(True))
             self.assertIsNotNone(service._get_provider("cloud", "test"))
             constructor.assert_called_once()
@@ -160,7 +160,7 @@ class SnapArcSecurityBoundaryTests(unittest.TestCase):
                 return None
         from src.core.privacy_gate import PrivacyConsentGate
         gate = PrivacyConsentGate()
-        with mock.patch("src.llm.service.OpenAICompatibleProvider") as provider:
+        with mock.patch("src.llm.service.ChatCompletionsProvider") as provider:
             service = LLMService(config_manager=DummyConfig(), consent_gate=gate)
             self.assertIsNone(service._get_provider("example"))
             provider.assert_not_called()

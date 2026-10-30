@@ -9,7 +9,7 @@ Verifies all user-reported v1.1 issues are resolved in v2.1:
    - `requires-python = ">=3.10"` (no `<3.14` ceiling in `pyproject.toml` or `uv.lock`).
 2. Complete elimination of legacy config/sidecar code smells:
    - Zero `stc.json`, `sample.stc.json`, `prompts.toml`, `prompts.toml.example`, `history-xml/`, `sidecars/`.
-   - Single unified `config.yaml` with `openai`, `google-gemini-cli`, and `cliproxy` providers.
+   - Single unified `config.yaml`; providers and model IDs are user configuration.
 3. Complete elimination of the 64-bit Windows `_Win32DropTarget` Access Violation (`0x00000000DFE37390`):
    - `_Win32DropTarget` never calls `SetWindowLongPtrW` or `CallWindowProcW` on Tkinter windows.
    - `read_clipboard_files_win32()` safely reads copied file paths without `WndProc` subclassing.
@@ -91,8 +91,8 @@ class STCV21ProductionTests(unittest.TestCase):
         self.assertTrue(cfg_path.is_file())
         parsed = load_yaml_or_json(cfg_path.read_text(encoding="utf-8"))
         providers = parsed.get("models", {}).get("providers", {})
-        self.assertIn("cliproxy", providers)
-        self.assertNotIn("google-gemini-cli", providers)
+        self.assertEqual(set(providers), {"my-provider"})
+        self.assertEqual(providers["my-provider"]["models"], ["example-model"])
 
         # FollowManager & load_prompt_payload must never fail when prompts.toml is absent
         fm = FollowManager(str(REPO_ROOT / "prompts.toml"))

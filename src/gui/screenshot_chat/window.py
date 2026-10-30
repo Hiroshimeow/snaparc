@@ -53,6 +53,7 @@ class ScreenshotChatWindow(customtkinter.CTkToplevel):
         self._message_refresh_job = None
         self._layout_resize_job = None
         self._last_layout_width = 0
+        self._last_message_frame_width = 0
         self._pinned_picker = None
         self._model_popover = None
         self._session_popover = None
@@ -298,6 +299,7 @@ class ScreenshotChatWindow(customtkinter.CTkToplevel):
         )
         self.message_frame.grid(row=1, column=0, sticky="nsew")
         self.message_frame.grid_columnconfigure(0, weight=1)
+        self.message_frame.bind("<Configure>", self._on_message_frame_configure, add="+")
         self._bind_scroll_state()
 
         self.scroll_bottom_button = customtkinter.CTkButton(
@@ -594,7 +596,7 @@ class ScreenshotChatWindow(customtkinter.CTkToplevel):
             anchor="w",
         ).grid(row=0, column=0, sticky="ew", padx=16, pady=(14, 4))
 
-        active_model = session.model_name or "cliproxy/gpt-5.4"
+        active_model = session.model_name or "(no model configured)"
         customtkinter.CTkLabel(
             card,
             text=(
@@ -736,7 +738,20 @@ class ScreenshotChatWindow(customtkinter.CTkToplevel):
                 self.after_cancel(self._layout_resize_job)
             except Exception:
                 pass
-        self._layout_resize_job = self.after(80, self._apply_responsive_message_widths)
+        self._layout_resize_job = self.after_idle(self._apply_responsive_message_widths)
+        return None
+
+    def _on_message_frame_configure(self, event=None):
+        width = int(getattr(event, "width", 0) or 0)
+        if width <= 80 or width == self._last_message_frame_width:
+            return None
+        self._last_message_frame_width = width
+        if self._layout_resize_job is not None:
+            try:
+                self.after_cancel(self._layout_resize_job)
+            except Exception:
+                pass
+        self._layout_resize_job = self.after_idle(self._apply_responsive_message_widths)
         return None
 
     def _apply_responsive_message_widths(self):
@@ -1549,7 +1564,7 @@ class ScreenshotChatWindow(customtkinter.CTkToplevel):
 
         custom_entry = customtkinter.CTkEntry(
             custom_row,
-            placeholder_text="Or type custom model ID (e.g. cliproxy/gpt-5.4)...",
+            placeholder_text="Type provider/model from config.yaml...",
             height=28,
             fg_color="#090d16",
             border_color="#334155",

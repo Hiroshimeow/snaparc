@@ -1,3 +1,4 @@
+
 from src.llm.errors import ProviderResolutionError, ProviderUnsupportedError
 from src.llm.provider_config import (
     ModelTarget,
@@ -19,29 +20,29 @@ class ModelRegistry:
         raw = self.config_manager.get_provider_config(provider_name)
         if not raw:
             return None
-        api = self._normalize_api(raw.get("api") or raw.get("api_mode") or "openai-completions")
-        platform = "openai"
-        extra_headers = raw.get("extraHeaders") or raw.get("extra_headers")
+        api = self._normalize_api(raw.get("api"))
+        platform = "openai-compatible"
+        extra_headers = raw.get("extraHeaders")
         models = self._normalize_models(provider_name, raw)
         return ProviderConfig(
             name=provider_name,
             api=api,
             platform=platform,
-            base_url=raw.get("baseUrl") or raw.get("base_url") or "",
-            api_key=raw.get("apiKey") or raw.get("api" + "_key") or "",
+            base_url=raw.get("baseUrl") or "",
+            api_key=raw.get("apiKey") or "",
             timeout=coerce_timeout(raw.get("timeout"), 120.0),
-            trust_env=coerce_bool(raw.get("trustEnv", raw.get("trust_env")), True),
+            trust_env=coerce_bool(raw.get("trustEnv"), True),
             extra_headers=dict(extra_headers) if isinstance(extra_headers, dict) else None,
             models=tuple(models),
-            display_name=raw.get("displayName") or raw.get("display_name") or provider_name,
+            display_name=raw.get("displayName") or provider_name,
             stream=coerce_bool(raw.get("stream"), True),
-            supports_images=coerce_bool(raw.get("supportsImages", raw.get("supports_images")), True),
-            supports_audio=coerce_bool(raw.get("supportsAudio", raw.get("supports_audio")), True),
+            supports_images=coerce_bool(raw.get("supportsImages"), True),
+            supports_audio=coerce_bool(raw.get("supportsAudio"), True),
             raw=dict(raw),
         )
 
     def _normalize_api(self, api: str) -> str:
-        value = str(api or "openai-completions").strip().lower()
+        value = str(api or "").strip().lower()
         if value != "openai-completions":
             raise ProviderUnsupportedError(
                 f"Unsupported provider API {value!r}; SnapArc only supports openai-completions."
@@ -53,10 +54,6 @@ class ModelRegistry:
         if isinstance(raw_models, str):
             raw_models = [raw_models]
         candidates = list(raw_models) if isinstance(raw_models, list) else []
-        for legacy_key in ("default_model", "defaultModel", "model"):
-            value = raw.get(legacy_key)
-            if isinstance(value, str) and value.strip():
-                candidates.append(value)
         seen = set()
         models = []
         for candidate in candidates:

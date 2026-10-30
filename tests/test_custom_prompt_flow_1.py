@@ -121,10 +121,10 @@ class TestScreenshotAppCustomPromptIntegration(unittest.TestCase):
         app = main.ScreenshotApp.__new__(main.ScreenshotApp)
         app.root = MagicMock()
         app.custom_prompt_history = MagicMock()
-        app.gemini = MagicMock()
-        app.gemini.get_prompt.return_value = "Default Prompt"
-        app.gemini.prompt_type = "default"
-        app.gemini.model = "cliproxy/gpt-5.4"
+        app.model_client = MagicMock()
+        app.model_client.get_prompt.return_value = "Default Prompt"
+        app.model_client.prompt_type = "default"
+        app.model_client.model = "provider/model-a"
 
         with patch("main.show_custom_prompt_dialog") as mock_dialog:
             app._show_custom_prompt_for_capture(["fake_path.png"], "t1", False)

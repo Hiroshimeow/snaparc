@@ -73,7 +73,7 @@ class ScreenshotChatController:
         held_images_consumer=None,
         snap_history_getter=None,
         llm_service=None,
-        gemini_factory=None,
+        model_client_factory=None,
         runner: ScreenshotChatRunner | None = None,
         store: ScreenshotChatStore | None = None,
         model_state_store=None,
@@ -88,7 +88,7 @@ class ScreenshotChatController:
         self.runner = runner or ScreenshotChatRunner(
             self.event_queue,
             llm_service=llm_service,
-            gemini_factory=gemini_factory,
+            model_client_factory=model_client_factory,
         )
         self.store = store or ScreenshotChatStore(self._history_path())
         if hasattr(self.store, "set_eviction_callback"):
@@ -445,7 +445,7 @@ class ScreenshotChatController:
         if norm not in {"off", "minimal", "low", "medium", "high"}:
             norm = "medium"
         self._pi_thinking_level = norm
-        self.set_status(f"🧠 Thinking level: {norm}")
+        self.set_status(f"ðŸ§  Thinking level: {norm}")
         self.refresh_window()
         return norm
 
@@ -457,7 +457,7 @@ class ScreenshotChatController:
         if norm not in {"none", "read_only", "approve_mutations"}:
             norm = "approve_mutations"
         self._pi_tool_mode = norm
-        self.set_status(f"🛠️ Tool policy: {norm}")
+        self.set_status(f"ðŸ› ï¸ Tool policy: {norm}")
         self.refresh_window()
         return norm
 
@@ -595,19 +595,18 @@ class ScreenshotChatController:
             return []
 
     def add_custom_model(self, raw_model_id: str) -> str:
-        """Add and select any custom OpenAI-compatible model ID (e.g. `cliproxy/deepseek-r1` or `qwen-max`)."""
+        """Add and select a model ID under an existing configured provider."""
         clean = str(raw_model_id or "").strip()
         if not clean:
             return ""
         add_fn = getattr(self.config_manager, "add_provider_model", None)
         if callable(add_fn) and not self._is_pi_model_name(clean):
             clean = add_fn(clean)
-        elif "/" not in clean and not self._is_pi_model_name(clean):
-            all_m = self.available_models()
-            default_prov = all_m[0].split("/")[0] if all_m and "/" in all_m[0] else "cliproxy"
-            clean = f"{default_prov}/{clean}"
+        if not clean or (not self._is_pi_model_name(clean) and "/" not in clean):
+            self.set_status("Use provider/model from config.yaml.")
+            return ""
         self.set_session_model(clean, sync_global=True)
-        self.set_status(f"✅ Active model set to {clean}")
+        self.set_status(f"âœ… Active model set to {clean}")
         return clean
 
     def get_active_session(self) -> ScreenshotChatSession:
@@ -1688,7 +1687,7 @@ class ScreenshotChatController:
             else:
                 self._append_system_notice(
                     session.id,
-                    f"🤖 **Pi Sidecar Active** — Model: `{session.model_name}` · Thinking: `{self._pi_thinking_level}` · Tools: `{self._pi_tool_mode}`",
+                    f"ðŸ¤– **Pi Sidecar Active** â€” Model: `{session.model_name}` Â· Thinking: `{self._pi_thinking_level}` Â· Tools: `{self._pi_tool_mode}`",
                 )
             return {"ok": True, "command": cmd, "model": session.model_name or pi_id}
 
@@ -1709,17 +1708,17 @@ class ScreenshotChatController:
                 else:
                     target = self.add_custom_model(target)
             self.set_session_model(target)
-            self._append_system_notice(session.id, f"✅ Switched Pi Sidecar model to `{target}`.")
+            self._append_system_notice(session.id, f"âœ… Switched Pi Sidecar model to `{target}`.")
             return {"ok": True, "command": cmd, "model": target}
 
         if cmd == "/thinking":
             level = self.set_thinking_level(arg or "medium")
-            self._append_system_notice(session.id, f"🧠 Pi Sidecar thinking level set to `{level}`.")
+            self._append_system_notice(session.id, f"ðŸ§  Pi Sidecar thinking level set to `{level}`.")
             return {"ok": True, "command": cmd, "thinking_level": level}
 
         if cmd == "/tools":
             mode = self.set_tool_mode(arg or "read_only")
-            self._append_system_notice(session.id, f"🛠️ Pi Sidecar tool permission mode set to `{mode}`.")
+            self._append_system_notice(session.id, f"ðŸ› ï¸ Pi Sidecar tool permission mode set to `{mode}`.")
             return {"ok": True, "command": cmd, "tool_mode": mode}
 
         if cmd == "/skills":
@@ -1729,7 +1728,7 @@ class ScreenshotChatController:
                 bullet_list = "\n".join(f"- **`{s.id}`**: {s.description}" for s in skills)
             except Exception:
                 bullet_list = "- `ocr_extract`\n- `translate_multilingual`\n- `explain_error`\n- `extract_markdown_table`"
-            self._append_system_notice(session.id, f"### 🧩 Registered Pi & Multimodal Skills\n{bullet_list}")
+            self._append_system_notice(session.id, f"### ðŸ§© Registered Pi & Multimodal Skills\n{bullet_list}")
             return {"ok": True, "command": cmd}
 
         if cmd == "/harness":
@@ -1749,7 +1748,7 @@ class ScreenshotChatController:
             res = self.export_session_transcript(session.id)
             self._append_system_notice(
                 session.id,
-                f"📄 Exported full unabbreviated HTML transcript to `{res.get('path')}`.",
+                f"ðŸ“„ Exported full unabbreviated HTML transcript to `{res.get('path')}`.",
             )
             return res
 
@@ -1802,11 +1801,11 @@ class ScreenshotChatController:
     def compact_session(self, focus: str = "") -> ScreenshotChatSession:
         session = self._ensure_active_session()
         if len(session.messages) <= 2:
-            self._append_system_notice(session.id, "ℹ️ Session is already compact.")
+            self._append_system_notice(session.id, "â„¹ï¸ Session is already compact.")
             return session
         kept_recent = session.messages[-2:]
         older = session.messages[:-2]
-        digest_lines = [f"### 🗜️ Compacted {len(older)} Earlier Messages"]
+        digest_lines = [f"### ðŸ—œï¸ Compacted {len(older)} Earlier Messages"]
         if focus:
             digest_lines.append(f"*Focus:* `{focus}`")
         for item in older[-8:]:
@@ -1843,7 +1842,7 @@ class ScreenshotChatController:
         if not clean:
             return False
         session = self._ensure_active_session()
-        prefix = "🧭 [Live Steer]" if mode == "steer" else "⏭️ [Follow-up]"
+        prefix = "ðŸ§­ [Live Steer]" if mode == "steer" else "â­ï¸ [Follow-up]"
         return self.send_message(f"{prefix} {clean}", session.model_name, session.prompt_type)
 
     def escalate_from_quick_popup(self, submission) -> bool:

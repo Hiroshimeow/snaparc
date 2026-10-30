@@ -16,7 +16,7 @@ from src.gui.screenshot_chat.models import (
 from src.gui.screenshot_chat.runner import ScreenshotChatRunner
 
 
-class FakeGemini:
+class FakeModelClient:
     instances = []
     callback_response = {"text": "ok"}
     raise_on_send = False
@@ -28,24 +28,24 @@ class FakeGemini:
         self.sent = []
         self.image_calls = []
         self.pending_callback = None
-        FakeGemini.instances.append(self)
+        FakeModelClient.instances.append(self)
 
     def set_model(self, model_name):
         self.model = model_name
 
     def send_text_message(self, *args, **kwargs):
-        if FakeGemini.raise_on_send:
+        if FakeModelClient.raise_on_send:
             raise RuntimeError("send failed")
         self.sent.append((args, kwargs))
         callback = kwargs["callback"]
-        if FakeGemini.defer_callback:
+        if FakeModelClient.defer_callback:
             self.pending_callback = callback
         else:
-            callback(FakeGemini.callback_response)
+            callback(FakeModelClient.callback_response)
 
     def process_image(self, *args, **kwargs):
         self.image_calls.append((args, kwargs))
-        kwargs["callback"](FakeGemini.callback_response)
+        kwargs["callback"](FakeModelClient.callback_response)
 
 
 class FakePiRuntime:
@@ -103,19 +103,19 @@ class BlockingPiRuntime(FakePiRuntime):
 
 class ScreenshotChatRunnerTests(unittest.TestCase):
     def test_default_runtime_factory_is_selected_from_job_config(self):
-        runner = ScreenshotChatRunner(queue.Queue(), gemini_factory=FakeGemini)
+        runner = ScreenshotChatRunner(queue.Queue(), model_client_factory=FakeModelClient)
         self.assertIsNone(runner.pi_runtime_factory)
         self.assertIsNone(runner._owned_pi_runtime_factory)
 
     def setUp(self):
-        FakeGemini.instances = []
-        FakeGemini.callback_response = {"text": "ok"}
-        FakeGemini.raise_on_send = False
-        FakeGemini.defer_callback = False
+        FakeModelClient.instances = []
+        FakeModelClient.callback_response = {"text": "ok"}
+        FakeModelClient.raise_on_send = False
+        FakeModelClient.defer_callback = False
         self.events = queue.Queue()
         FakePiRuntime.instances = []
         FakePiRuntime.result = PiRunResult(text="pi answer")
-        self.runner = ScreenshotChatRunner(self.events, gemini_factory=FakeGemini, pi_runtime_factory=FakePiRuntime)
+        self.runner = ScreenshotChatRunner(self.events, model_client_factory=FakeModelClient, pi_runtime_factory=FakePiRuntime)
 
     def drain_events(self):
         events = []
@@ -138,7 +138,7 @@ class ScreenshotChatRunnerTests(unittest.TestCase):
             time.sleep(0.01)
         return False
 
-    def test_each_responder_uses_fresh_gemini_instance(self):
+    def test_each_responder_uses_fresh_model_client(self):
         session = ScreenshotChatSession(id="s1", model_name="provider/main")
         user_message = ScreenshotChatMessage(id="m1", role="user", text="@main @critic hi")
         responders = [
@@ -154,31 +154,31 @@ class ScreenshotChatRunnerTests(unittest.TestCase):
                 break
             events.extend(more)
 
-        self.assertEqual(len(FakeGemini.instances), 2)
-        self.assertEqual(FakeGemini.instances[0].model, "provider/main")
-        self.assertEqual(FakeGemini.instances[1].model, "provider/critic")
+        self.assertEqual(len(FakeModelClient.instances), 2)
+        self.assertEqual(FakeModelClient.instances[0].model, "provider/main")
+        self.assertEqual(FakeModelClient.instances[1].model, "provider/critic")
         self.assertEqual([event.type for event in events].count("message_final"), 2)
 
 
     def test_cancel_ignores_late_response(self):
-        FakeGemini.defer_callback = True
+        FakeModelClient.defer_callback = True
         session = ScreenshotChatSession(id="s1", model_name="provider/main")
         user_message = ScreenshotChatMessage(id="m1", role="user", text="hi")
         responder = ScreenshotChatResponder(name="main", kind="main")
 
         jobs = self.runner.start_response_jobs(session, user_message, "hi", [responder])
         deadline = time.monotonic() + 2
-        while not FakeGemini.instances and time.monotonic() < deadline:
+        while not FakeModelClient.instances and time.monotonic() < deadline:
             time.sleep(0.01)
         self.runner.cancel_job(jobs[0].id)
-        FakeGemini.instances[0].pending_callback({"text": "late"})
+        FakeModelClient.instances[0].pending_callback({"text": "late"})
         events = self.drain_events()
 
         self.assertNotIn("message_final", [event.type for event in events])
         self.assertIn("job_finished", [event.type for event in events])
 
     def test_send_error_emits_job_error(self):
-        FakeGemini.raise_on_send = True
+        FakeModelClient.raise_on_send = True
         session = ScreenshotChatSession(id="s1", model_name="provider/main")
         user_message = ScreenshotChatMessage(id="m1", role="user", text="hi")
         responder = ScreenshotChatResponder(name="main", kind="main")
@@ -203,12 +203,12 @@ class ScreenshotChatRunnerTests(unittest.TestCase):
         self.runner.start_response_jobs(session, user_message, "hi", [responder])
         self.assertTrue(
             self.wait_until(
-                lambda: FakeGemini.instances and FakeGemini.instances[0].sent
+                lambda: FakeModelClient.instances and FakeModelClient.instances[0].sent
             )
         )
 
-        self.assertEqual(FakeGemini.instances[0].model, "cliproxy-2080/gemini-3-flash")
-        args, kwargs = FakeGemini.instances[0].sent[0]
+        self.assertEqual(FakeModelClient.instances[0].model, "cliproxy-2080/gemini-3-flash")
+        args, kwargs = FakeModelClient.instances[0].sent[0]
         self.assertEqual(kwargs["model_name"], "gemini-3-flash")
 
     def test_multi_image_attachment_routes_to_process_image(self):
@@ -228,12 +228,12 @@ class ScreenshotChatRunnerTests(unittest.TestCase):
             self.runner.start_response_jobs(session, user_message, "", [responder])
             self.assertTrue(
                 self.wait_until(
-                    lambda: FakeGemini.instances and FakeGemini.instances[0].image_calls
+                    lambda: FakeModelClient.instances and FakeModelClient.instances[0].image_calls
                 )
             )
 
-            self.assertEqual(len(FakeGemini.instances[0].image_calls), 1)
-            args, kwargs = FakeGemini.instances[0].image_calls[0]
+            self.assertEqual(len(FakeModelClient.instances[0].image_calls), 1)
+            args, kwargs = FakeModelClient.instances[0].image_calls[0]
             self.assertEqual(args[0], [first.name, second.name])
 
     def test_text_attachment_contents_are_added_to_prompt(self):
@@ -255,11 +255,11 @@ class ScreenshotChatRunnerTests(unittest.TestCase):
             self.runner.start_response_jobs(session, user_message, "summarize", [responder])
             self.assertTrue(
                 self.wait_until(
-                    lambda: FakeGemini.instances and FakeGemini.instances[0].sent
+                    lambda: FakeModelClient.instances and FakeModelClient.instances[0].sent
                 )
             )
 
-            args, kwargs = FakeGemini.instances[0].sent[0]
+            args, kwargs = FakeModelClient.instances[0].sent[0]
             self.assertIn("summarize", args[0])
             self.assertIn("--- requirement.txt ---", args[0])
             self.assertIn("requirement body", args[0])
@@ -292,11 +292,11 @@ class ScreenshotChatRunnerTests(unittest.TestCase):
             self.runner.start_response_jobs(session, user_message, "what is attached", [responder])
             self.assertTrue(
                 self.wait_until(
-                    lambda: FakeGemini.instances and FakeGemini.instances[0].sent
+                    lambda: FakeModelClient.instances and FakeModelClient.instances[0].sent
                 )
             )
 
-            args, kwargs = FakeGemini.instances[0].sent[0]
+            args, kwargs = FakeModelClient.instances[0].sent[0]
             self.assertIn("what is attached", args[0])
             self.assertIn("--- brief.pdf ---", args[0])
             self.assertIn("PDF", args[0])
@@ -340,11 +340,11 @@ class ScreenshotChatRunnerTests(unittest.TestCase):
                 self.runner.start_response_jobs(session, user_message, "summarize pdf", [responder])
                 self.assertTrue(
                     self.wait_until(
-                        lambda: FakeGemini.instances and FakeGemini.instances[0].sent
+                        lambda: FakeModelClient.instances and FakeModelClient.instances[0].sent
                     )
                 )
 
-            args, kwargs = FakeGemini.instances[0].sent[0]
+            args, kwargs = FakeModelClient.instances[0].sent[0]
             self.assertIn("--- brief.pdf ---", args[0])
             self.assertIn("[page 1]\npage one body", args[0])
             self.assertIn("[page 2]\npage two body", args[0])
@@ -378,7 +378,7 @@ class ScreenshotChatRunnerTests(unittest.TestCase):
                 return {"closed": True}
 
         factory = ClosingFactory()
-        runner = ScreenshotChatRunner(self.events, gemini_factory=FakeGemini, pi_runtime_factory=factory)
+        runner = ScreenshotChatRunner(self.events, model_client_factory=FakeModelClient, pi_runtime_factory=factory)
 
         runner.close_pi_session("s1", ["Pi Agent", "pi", "pi"])
 
@@ -406,7 +406,7 @@ class ScreenshotChatRunnerTests(unittest.TestCase):
             def __call__(self, config, emit):
                 raise RuntimeError("SDK startup incompatible")
 
-        runner = ScreenshotChatRunner(self.events, gemini_factory=FakeGemini, pi_runtime_factory=FailingFactory())
+        runner = ScreenshotChatRunner(self.events, model_client_factory=FakeModelClient, pi_runtime_factory=FailingFactory())
         session = ScreenshotChatSession(id="s1", model_name="pi://agent/pi")
         user_message = ScreenshotChatMessage(id="m1", role="user", text="hi")
         responder = ScreenshotChatResponder(
@@ -460,7 +460,7 @@ class ScreenshotChatRunnerTests(unittest.TestCase):
         self.runner.start_response_jobs(session, user_message, "hi", [responder])
         events = self.drain_events()
 
-        self.assertTrue(FakeGemini.instances)
+        self.assertTrue(FakeModelClient.instances)
         self.assertEqual(FakePiRuntime.instances[0].closed, [3000])
         self.assertIn("runtime_notice", [event.type for event in events])
         self.assertIn("message_final", [event.type for event in events])
@@ -483,7 +483,7 @@ class ScreenshotChatRunnerTests(unittest.TestCase):
         self.runner.start_response_jobs(session, user_message, "write", [responder])
         events = self.drain_events()
 
-        self.assertEqual(FakeGemini.instances, [])
+        self.assertEqual(FakeModelClient.instances, [])
         error = next(event.error for event in events if event.type == "job_error")
         self.assertIn("ambiguous", error.lower())
         self.assertIn("job_finished", [event.type for event in events])
@@ -502,8 +502,8 @@ class ScreenshotChatRunnerTests(unittest.TestCase):
         self.runner.start_response_jobs(session, user_message, "hi", [responder])
         events = self.drain_events()
 
-        self.assertTrue(FakeGemini.instances)
-        self.assertEqual(FakeGemini.instances[0].model, "provider/main")
+        self.assertTrue(FakeModelClient.instances)
+        self.assertEqual(FakeModelClient.instances[0].model, "provider/main")
         self.assertIn("message_final", [event.type for event in events])
 
     def test_pi_unavailable_fallback_rejects_pi_sentinel_model(self):
@@ -520,7 +520,7 @@ class ScreenshotChatRunnerTests(unittest.TestCase):
         self.runner.start_response_jobs(session, user_message, "hi", [responder])
         events = self.drain_events()
 
-        self.assertEqual(FakeGemini.instances, [])
+        self.assertEqual(FakeModelClient.instances, [])
         self.assertEqual([event.type for event in events].count("job_error"), 1)
         self.assertIn("normal LLM model", next(event.error for event in events if event.type == "job_error"))
 
@@ -593,17 +593,17 @@ class ScreenshotChatRunnerTests(unittest.TestCase):
             os.unlink(path)
 
     def test_pi_fallback_cancel_ignores_late_llm_response(self):
-        FakeGemini.defer_callback = True
+        FakeModelClient.defer_callback = True
         FakePiRuntime.result = PiRunResult(error="missing", fallback_to_llm=True, side_effect_started=False)
         session = ScreenshotChatSession(id="s1", model_name="provider/main")
         user_message = ScreenshotChatMessage(id="m1", role="user", text="@pi hi")
         responder = ScreenshotChatResponder(name="pi", runtime="pi", model_name="provider/main", metadata={"pi_config": {"enabled": True}})
 
         jobs = self.runner.start_response_jobs(session, user_message, "hi", [responder])
-        self.assertTrue(self.wait_until(lambda: FakeGemini.instances and FakeGemini.instances[0].pending_callback))
+        self.assertTrue(self.wait_until(lambda: FakeModelClient.instances and FakeModelClient.instances[0].pending_callback))
         self.assertIn(jobs[0].id, self.runner._cancel_flags)
         self.runner.cancel_job(jobs[0].id)
-        FakeGemini.instances[0].pending_callback({"text": "late fallback"})
+        FakeModelClient.instances[0].pending_callback({"text": "late fallback"})
         events = self.drain_events()
 
         self.assertNotIn("message_final", [event.type for event in events])
@@ -643,7 +643,7 @@ class ScreenshotChatRunnerTests(unittest.TestCase):
         self.assertEqual(len(runtime.approval_calls), 1)
 
     def test_pi_cancel_discards_late_runtime_events_and_emits_one_terminal_lifecycle(self):
-        runner = ScreenshotChatRunner(self.events, gemini_factory=FakeGemini, pi_runtime_factory=BlockingPiRuntime)
+        runner = ScreenshotChatRunner(self.events, model_client_factory=FakeModelClient, pi_runtime_factory=BlockingPiRuntime)
         session = ScreenshotChatSession(id="s1", model_name="provider/main")
         user_message = ScreenshotChatMessage(id="m1", role="user", text="@pi hi")
         responder = ScreenshotChatResponder(name="pi", runtime="pi", metadata={"pi_config": {"enabled": True}})
@@ -710,7 +710,7 @@ class ScreenshotChatRunnerTests(unittest.TestCase):
         self.assertEqual(self.runner._response_to_text({"text": ""}), "[Error: Response has no content]")
 
     def test_llm_callback_sanitizes_provider_prefixed_response(self):
-        FakeGemini.callback_response = {"text": "main: main: clean answer"}
+        FakeModelClient.callback_response = {"text": "main: main: clean answer"}
         session = ScreenshotChatSession(id="s1", model_name="provider/main")
         user_message = ScreenshotChatMessage(id="m1", role="user", text="hi")
         responder = ScreenshotChatResponder(name="main", kind="main")

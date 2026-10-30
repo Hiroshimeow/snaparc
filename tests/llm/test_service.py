@@ -39,7 +39,7 @@ class LLMServiceTests(unittest.TestCase):
             def supports(self, _feature):
                 return True
 
-        with patch("src.llm.service.OpenAICompatibleProvider", FakeProvider):
+        with patch("src.llm.service.ChatCompletionsProvider", FakeProvider):
             service = LLMService(config_manager=self.make_config_manager())
             values = []
             service.send_text_message(
@@ -62,7 +62,7 @@ class LLMServiceTests(unittest.TestCase):
                 self.kwargs = kwargs
                 instances.append(self)
 
-        with patch("src.llm.service.OpenAICompatibleProvider", FakeProvider):
+        with patch("src.llm.service.ChatCompletionsProvider", FakeProvider):
             service = LLMService(config_manager=manager)
             first = service._get_provider("cliproxy", "gemini-3-flash")
             service.reload_config()
@@ -81,7 +81,7 @@ class LLMServiceTests(unittest.TestCase):
             def send_text_message(self, *_args, **kwargs):
                 temperatures.append(kwargs["temperature"])
 
-        with patch("src.llm.service.OpenAICompatibleProvider", FakeProvider):
+        with patch("src.llm.service.ChatCompletionsProvider", FakeProvider):
             service = LLMService(config_manager=self.make_config_manager())
             for temperature in (0.0, None, 0.2):
                 service.send_text_message("hello", temperature=temperature)
@@ -101,7 +101,7 @@ class LLMServiceTests(unittest.TestCase):
             def send_text_message(self, *_args, **_kwargs):
                 return None
 
-        with patch("src.llm.service.OpenAICompatibleProvider", FakeProvider):
+        with patch("src.llm.service.ChatCompletionsProvider", FakeProvider):
             service = LLMService(config_manager=manager)
             service.send_text_message(
                 "first",
@@ -127,7 +127,7 @@ class LLMServiceTests(unittest.TestCase):
                 self.kwargs = kwargs
                 instances.append(self)
 
-        with patch("src.llm.service.OpenAICompatibleProvider", FakeProvider):
+        with patch("src.llm.service.ChatCompletionsProvider", FakeProvider):
             service = LLMService(config_manager=manager)
             previous = service._get_provider("cliproxy", "gemini-3-flash")
             for key, value in (
@@ -148,18 +148,18 @@ class LLMServiceTests(unittest.TestCase):
         manager = self.make_config_manager()
         provider_config = manager.get_provider_config("cliproxy")
 
-        class FakeOpenAIProvider:
+        class FakeCompletionsProvider:
             def __init__(self, **_kwargs):
                 pass
 
-        with patch("src.llm.service.OpenAICompatibleProvider", FakeOpenAIProvider):
+        with patch("src.llm.service.ChatCompletionsProvider", FakeCompletionsProvider):
             service = LLMService(config_manager=manager)
             first = service._get_provider("cliproxy", "gemini-3-flash")
             provider_config["baseUrl"] = "https://new-endpoint.test/v1"
             second = service._get_provider("cliproxy", "gemini-3-flash")
 
-        self.assertIsInstance(first, FakeOpenAIProvider)
-        self.assertIsInstance(second, FakeOpenAIProvider)
+        self.assertIsInstance(first, FakeCompletionsProvider)
+        self.assertIsInstance(second, FakeCompletionsProvider)
         self.assertIsNot(first, second)
 
     def test_process_image_preserves_exact_custom_prompt_text(self):
@@ -175,7 +175,7 @@ class LLMServiceTests(unittest.TestCase):
             def supports(self, _feature):
                 return True
 
-        with patch("src.llm.service.OpenAICompatibleProvider", FakeProvider):
+        with patch("src.llm.service.ChatCompletionsProvider", FakeProvider):
             service = LLMService(config_manager=self.make_config_manager())
             service.process_image(
                 "image.png",
@@ -200,7 +200,7 @@ class LLMServiceTests(unittest.TestCase):
             def supports(self, _feature):
                 return True
 
-        with patch("src.llm.service.OpenAICompatibleProvider", FakeProvider):
+        with patch("src.llm.service.ChatCompletionsProvider", FakeProvider):
             service = LLMService(config_manager=self.make_config_manager())
             resolve_target = service._resolve_target_or_callback
 

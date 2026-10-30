@@ -9,7 +9,7 @@ the cursor position:
 - Pre-populates values from `RadialParamStore` (last-used values for fast 1-key re-runs)
   or falls back to each parameter's default (e.g., `{file_dir}` = root directory of
   the dragged PDF/PNG).
-- Supports quick preset chips (e.g. `150 DPI`, `300 DPI` for `pdf2png`; `0.25x (25%)`,
+- Supports quick preset chips (e.g. `0.25x (25%)`,
   `0.5x (50%)`, `1.5x (150%)`, `2.0x (200%)`, `3.0x (300%)` for `png_resize`).
 - Live CLI command preview bar (e.g. `uv run plugins/a.py --root 11235813x --host 0.0.0.0 --port 8000`).
 - Press `Enter` anywhere to run immediately, `↺ Reset Default` to restore defaults, or `Esc` to cancel.

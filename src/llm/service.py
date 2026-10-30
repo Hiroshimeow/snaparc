@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-import time
-from src.core.privacy_gate import ConsentScope, PrivacyConsentGate, TokenBudgetController
+from src.core.privacy_gate import ConsentScope, PrivacyConsentGate
 from src.core.network_policy import is_loopback_provider
 from src.core.secret_store import SecretStore
-from src.llm.providers.openai import OpenAICompatibleProvider
+from src.llm.providers.completions import ChatCompletionsProvider
 from src.llm.registry import ModelRegistry
 from src.services.float_audio_service import FloatAudioModelResolver
 from src.utils.ConfigManager import ConfigManager
@@ -21,8 +20,6 @@ class LLMService:
         prompt_type="prompt_translate",
         secret_store: SecretStore | None = None,
         consent_gate: PrivacyConsentGate | None = None,
-        budget_controller: TokenBudgetController | None = None,
-        **_legacy_ignored,
     ):
         self.config_manager = config_manager or ConfigManager()
         self.registry = ModelRegistry(self.config_manager)
@@ -37,7 +34,6 @@ class LLMService:
         # (Git-ignored) configuration. Do not infer consent from a stored API key.
         if consent_gate is None and self.config_manager.get("privacy.allow_cloud_upload", False) is True:
             self.consent_gate.set_scope_consent(ConsentScope.CLOUD_UPLOAD, True)
-        self.budget_controller = budget_controller or TokenBudgetController()
         self.audio_model_resolver = FloatAudioModelResolver(self.config_manager)
         self._providers_cache = {}
 
@@ -107,7 +103,6 @@ class LLMService:
         custom_prompt_type=None,
         custom_prompt_text=None,
         model_full_name=None,
-        enable_failover: bool = False,
         max_output_tokens=None,
         timeout_seconds=None,
     ):
@@ -132,28 +127,13 @@ class LLMService:
                 ))
             return None
 
-        if not enable_failover:
-            return provider.process_image(
-                image_paths,
-                effective_prompt,
-                callback=callback,
-                history=history,
-                model=target.model_name,
-                **bounds,
-            )
-
-        return self._run_with_failover(
-            primary_full_name=f"{target.provider.name}/{target.model_name}",
-            invoke_fn=lambda prov, mod_name, cb: prov.process_image(
-                image_paths,
-                effective_prompt,
-                callback=cb,
-                history=history,
-                model=mod_name,
-                **bounds,
-            ),
-            prompt_text=effective_prompt,
+        return provider.process_image(
+            image_paths,
+            effective_prompt,
             callback=callback,
+            history=history,
+            model=target.model_name,
+            **bounds,
         )
 
     def send_text_message(
@@ -165,7 +145,6 @@ class LLMService:
         temperature=None,
         model_name=None,
         image=None,
-        enable_failover: bool = False,
         max_output_tokens=None,
         timeout_seconds=None,
     ):
@@ -190,32 +169,15 @@ class LLMService:
             return None
 
         effective_temp = 0.7 if temperature is None else temperature
-        if not enable_failover:
-            return provider.send_text_message(
-                text_prompt,
-                callback=callback,
-                history=history,
-                system_prompt=system_prompt,
-                temperature=effective_temp,
-                model_name=request_model,
-                image=image,
-                **bounds,
-            )
-
-        return self._run_with_failover(
-            primary_full_name=f"{target.provider.name}/{target.model_name}",
-            invoke_fn=lambda prov, mod_name, cb: prov.send_text_message(
-                text_prompt,
-                callback=cb,
-                history=history,
-                system_prompt=system_prompt,
-                temperature=effective_temp,
-                model_name=mod_name,
-                image=image,
-                **bounds,
-            ),
-            prompt_text=text_prompt,
+        return provider.send_text_message(
+            text_prompt,
             callback=callback,
+            history=history,
+            system_prompt=system_prompt,
+            temperature=effective_temp,
+            model_name=request_model,
+            image=image,
+            **bounds,
         )
 
     @staticmethod
@@ -225,72 +187,6 @@ class LLMService:
         return {key: value for key, value in {
             "max_output_tokens": max_output_tokens, "timeout_seconds": timeout_seconds,
         }.items() if value is not None}
-
-    def _run_with_failover(self, primary_full_name: str, invoke_fn, prompt_text: str, callback=None):
-        fallbacks = self.config_manager.get("agents.defaults.model.fallbacks", [])
-        if not isinstance(fallbacks, list):
-            fallbacks = []
-        candidates = [primary_full_name, *[str(f) for f in fallbacks if str(f) and str(f) != primary_full_name]]
-        started = time.perf_counter()
-
-        def try_index(idx: int):
-            candidate_full = candidates[idx]
-            target = self._resolve_target(candidate_full)
-            if target is None:
-                if idx + 1 < len(candidates):
-                    return try_index(idx + 1)
-                if callback:
-                    callback(self._error_payload(f"All models failed starting from {primary_full_name}"))
-                return None
-            prov = self._get_provider(target.provider.name, target.model_name)
-            if prov is None:
-                if idx + 1 < len(candidates):
-                    return try_index(idx + 1)
-                if callback:
-                    callback(self._error_payload(f"Provider unavailable: {target.provider.name}"))
-                return None
-
-            def on_candidate_result(res):
-                is_err = (
-                    res is None
-                    or (isinstance(res, dict) and str(res.get("text") or "").startswith(("Error:", "[Error:")))
-                    or (isinstance(res, str) and res.startswith(("Error:", "[Error:")))
-                )
-                if is_err and idx + 1 < len(candidates):
-                    try_index(idx + 1)
-                    return
-                latency = (time.perf_counter() - started) * 1000.0
-                ans_text = res.get("text", "") if isinstance(res, dict) else str(res or "")
-                fallback_origin = primary_full_name if idx > 0 else ""
-                self.budget_controller.record_usage(
-                    run_id=f"run_{int(time.time() * 1000)}",
-                    provider=target.provider.name,
-                    model=f"{target.provider.name}/{target.model_name}",
-                    prompt_text=prompt_text,
-                    completion_text=ans_text,
-                    latency_ms=latency,
-                    fallback_from=fallback_origin,
-                )
-                if isinstance(res, dict) and idx > 0:
-                    enriched = dict(res)
-                    enriched["model_used"] = f"{target.provider.name}/{target.model_name}"
-                    enriched["fallback_from"] = primary_full_name
-                    if callback:
-                        callback(enriched)
-                    return
-                if callback:
-                    callback(res)
-
-            try:
-                return invoke_fn(prov, target.model_name, on_candidate_result)
-            except Exception as exc:
-                if idx + 1 < len(candidates):
-                    return try_index(idx + 1)
-                if callback:
-                    callback(self._error_payload(exc))
-                return None
-
-        return try_index(0)
 
     def process_audio(
         self,
@@ -364,7 +260,7 @@ class LLMService:
         if cached is not None and cached[0] == fingerprint:
             return cached[1]
 
-        provider = OpenAICompatibleProvider(
+        provider = ChatCompletionsProvider(
             api_key=effective_key,
             base_url=provider_config.base_url,
             model=model_name,

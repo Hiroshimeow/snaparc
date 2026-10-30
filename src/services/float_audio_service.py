@@ -125,17 +125,12 @@ class FloatAudioModelResolver:
         configured_selected = selected_model
         if not isinstance(configured_selected, str) or not configured_selected.strip():
             configured_selected = self.config_manager.get("agents.defaults.model.primary")
-        fallback_model = self.config_manager.get("audio.stt.fallback_model")
-
         candidates = [
             ("selected_model", configured_selected),
             ("preferred_model", self.config_manager.get("audio.stt.preferred_model")),
-            ("fallback_model", fallback_model),
         ]
         audio_capable_models = self.config_manager.get("audio.stt.audio_capable_models", [])
         audio_capable_models = set(audio_capable_models or [])
-        if isinstance(fallback_model, str) and fallback_model.strip():
-            audio_capable_models.add(fallback_model.strip())
         rejections = []
 
         for source, model_full_name in candidates:

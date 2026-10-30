@@ -5,7 +5,7 @@ import sys
 import threading
 import time
 import keyboard
-from pynput import mouse
+from src.platform.win32_mouse import Button, Listener
 
 
 _WINDOWS_VIRTUAL_KEYS = {
@@ -35,7 +35,7 @@ class InputHandler:
        - Mode 1: Hold `Ctrl + Alt`, press & hold Left (or Right) mouse button, drag to
          select a slice on the radial wheel, and release.
        - Mode 2: Hold `Ctrl + Alt`, grab/drag a file (or start dragging a file with Left
-         mouse and press `Ctrl + Alt`), move into the target plugin slice (e.g. `pdf2png`,
+         mouse and press `Ctrl + Alt`), move into the target plugin slice (e.g. `png_resize`,
          `png_resize`), and release.
     """
 
@@ -63,7 +63,7 @@ class InputHandler:
         self.is_capturing = False
         self.right_click_start_time = None
         self.right_click_start_pos = None
-        self.trigger_button = mouse.Button.right
+        self.trigger_button = Button.right
         self.left_click_mode_enabled = False
 
         # Radial wheel state (Ctrl + Alt + Hold/Drag Left/Right Mouse)
@@ -78,10 +78,10 @@ class InputHandler:
         """Toggle between Right-Mouse and Left-Mouse drag snap capture."""
         self.left_click_mode_enabled = not self.left_click_mode_enabled
         if self.left_click_mode_enabled:
-            self.trigger_button = mouse.Button.left
+            self.trigger_button = Button.left
             print("Capture Mode switched to: LEFT MOUSE")
         else:
-            self.trigger_button = mouse.Button.right
+            self.trigger_button = Button.right
             print("Capture Mode switched to: RIGHT MOUSE")
         return self.left_click_mode_enabled
 
@@ -134,16 +134,16 @@ class InputHandler:
 
         # Mode 2 File-Drag Support: if user started dragging a file with Left Mouse first,
         # and then pressed Ctrl + Alt while dragging, open the Radial Wheel at current cursor!
-        if self._held_mouse_button == mouse.Button.left and not self._radial_active:
+        if self._held_mouse_button == Button.left and not self._radial_active:
             modifiers = self._read_modifiers()
             if modifiers.get("ctrl") and modifiers.get("alt"):
                 self._cancel_radial_timer()
-                self._radial_button = mouse.Button.left
+                self._radial_button = Button.left
                 self._radial_origin = (int(x), int(y))
                 self._activate_radial_wheel(int(x), int(y))
 
     def on_click(self, x, y, button, pressed):
-        is_left_or_right = button in (mouse.Button.left, mouse.Button.right)
+        is_left_or_right = button in (Button.left, Button.right)
 
         if pressed:
             if is_left_or_right:
@@ -277,7 +277,7 @@ class InputHandler:
         if self.mouse_listener and self.mouse_listener.is_alive():
             return
         try:
-            self.mouse_listener = mouse.Listener(
+            self.mouse_listener = Listener(
                 on_click=self.on_click,
                 on_move=self.on_move,
             )

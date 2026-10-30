@@ -1,3 +1,4 @@
+
 import types
 import unittest
 from unittest.mock import MagicMock
@@ -78,7 +79,6 @@ class FloatingWindowSttControlTests(unittest.TestCase):
             select_audio_files_callback=select_audio_files_callback,
             get_audio_duration_callback=None,
             pause_audio_callback=None,
-            gemini_instance=None,
             toggle_follow_callback=None,
             get_follow_state_callback=None,
             get_audio_stt_state_callback=get_audio_stt_state_callback,

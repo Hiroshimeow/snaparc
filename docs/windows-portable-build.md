@@ -11,7 +11,7 @@ On the G6 Windows environment, the candidate build:
 - completed with PyInstaller;
 - passed `SnapArc.exe --snaparc-release-smoke`;
 - loaded CPython 3.12.10 and Tcl/Tk 8.6.15;
-- found 8 icons, 164 animation frames and 10 bundled plugins;
+- found 8 icons, 164 animation frames and bundled plugins;
 - loaded the Screenshot Chat web assets and healthy loopback server;
 - opened `--open-chat` with a visible `SnapArc Chat` window.
 
@@ -27,8 +27,7 @@ A future portable/binary release needs additional work:
 - clean-machine Windows 10/11 smoke;
 - Japanese IME, capture/hotkey, audio, clipboard and WebView2 interactive
   acceptance;
-- LGPLv3 redistribution compliance for `pynput` and `pystray`;
-- exact PDFium/pypdfium2 third-party notices;
+- complete transitive dependency/license redistribution audit;
 - executable hashes and an explicit unsigned-pre-alpha warning, or later
   Authenticode signing;
 - installer/uninstaller/update-integrity validation for a production release.

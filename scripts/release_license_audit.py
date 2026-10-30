@@ -5,7 +5,7 @@ from pathlib import Path
 import re
 import tomllib
 
-REQUIRED_NOTICE_PACKAGES = {"pystray", "pynput", "pypdfium2", "tomli"}
+REQUIRED_NOTICE_PACKAGES = {"tomli"}
 CONDITIONAL_LICENSES = {"tomli": "MIT"}
 
 
@@ -65,8 +65,8 @@ def main() -> int:
 
     print(f"direct_dependencies={len(direct)} dependency_sources=pypi.org+local-project")
     for name, version, license_text in detected:
-        if "LGPL" in license_text.upper() or name == "pypdfium2":
-            print(f"NOTICE-REVIEW: {name} {version} -> {license_text}")
+        if any(tag in license_text.upper() for tag in ("GPL", "AGPL", "LGPL")):
+            print(f"COPYLEFT-REVIEW: {name} {version} -> {license_text}")
     if failures:
         for issue in failures:
             print(f"ERROR: {issue}")

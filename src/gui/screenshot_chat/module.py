@@ -18,7 +18,7 @@ class ChatbotModule:
         held_images_getter=None,
         held_images_consumer=None,
         llm_service=None,
-        gemini_factory=None,
+        model_client_factory=None,
         model_state_store=None,
     ):
         extra = {"model_state_store": model_state_store} if model_state_store is not None else {}
@@ -29,7 +29,7 @@ class ChatbotModule:
             held_images_getter=held_images_getter,
             held_images_consumer=held_images_consumer,
             llm_service=llm_service,
-            gemini_factory=gemini_factory,
+            model_client_factory=model_client_factory,
             **extra,
         )
 

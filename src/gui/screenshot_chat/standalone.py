@@ -4,7 +4,7 @@ import os
 import tkinter as tk
 
 from src.gui.screenshot_chat.module import ChatbotModule
-from src.models.Gemini import Gemini
+from src.llm.client import ModelClient
 from src.utils.ConfigManager import ConfigManager
 
 
@@ -23,13 +23,13 @@ def resolve_config_path() -> str:
 def build_module(root):
     project_root = resolve_project_root()
     config_manager = ConfigManager(resolve_config_path())
-    gemini = Gemini()
+    model_client = ModelClient(config_manager)
     return ChatbotModule(
         root,
         config_manager=config_manager,
         project_root=project_root,
-        llm_service=gemini.llm_service,
-        gemini_factory=lambda: gemini,
+        llm_service=model_client.llm_service,
+        model_client_factory=lambda: model_client,
     )
 
 

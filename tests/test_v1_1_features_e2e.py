@@ -16,7 +16,7 @@ Verifies all 6 v1.1 requirements requested by the user:
 4. `Ctrl + Alt + Hold Mouse (0.2s)` Radial Plugin Wheel (`lolPing` style):
    - Circular sector geometry (`compute_radial_sector`) with center deadzone (`BACK`) and 8 outer slices
    - Hot-reloadable `plugins.yaml` & `stc.json` configuration (`RadialPluginService`)
-   - Isolated subprocess execution of external plugin scripts (`pdf2png.py`, `format_json.py`, `extract_table.py`, `ocr_clipboard.py`)
+   - Isolated subprocess execution of external plugin scripts (`format_json.py`, `extract_table.py`, `ocr_clipboard.py`)
    - `InputHandler` `Ctrl + Alt + Hold` detection without conflicting with right-mouse drag capture
 5. Ruthless code cleanup, removal of `HistoryManager.py` (`result.html`), and `MemoryGuard` anti-lag protection.
 6. Provider/Model Switch Bug Fix ("đổi provider xong vẫn hiện provider gemini 2.5"):
@@ -278,7 +278,6 @@ class V11CompleteVerificationTests(unittest.TestCase):
         plugins = service.list_plugins()
         self.assertGreaterEqual(len(plugins), 6)
         plugin_ids = {p.id for p in plugins}
-        self.assertIn("pdf2png", plugin_ids)
         self.assertIn("format_json", plugin_ids)
         self.assertIn("extract_table", plugin_ids)
 
@@ -309,12 +308,12 @@ class V11CompleteVerificationTests(unittest.TestCase):
             on_radial_release=lambda x, y: radial_events.append(("release", x, y)),
             radial_hold_seconds=0.02,
         )
-        from pynput import mouse
+        from src.platform.win32_mouse import Button
 
-        ih.on_click(300, 300, mouse.Button.right, True)
+        ih.on_click(300, 300, Button.right, True)
         time.sleep(0.06)
         ih.on_move(380, 300)
-        ih.on_click(380, 300, mouse.Button.right, False)
+        ih.on_click(380, 300, Button.right, False)
 
         self.assertEqual(radial_events[0], ("open", 300, 300))
         self.assertIn(("move", 380, 300), radial_events)

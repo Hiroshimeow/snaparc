@@ -230,7 +230,7 @@ class ScreenshotChatComposer(customtkinter.CTkFrame):
         # Model Selector Pill Button
         self.model_pill = customtkinter.CTkButton(
             self.toolbar,
-            text="⚡ gpt-5.4 ▾",
+            text="⚡ Model ▾",
             width=116,
             height=28,
             fg_color="#0f2942",

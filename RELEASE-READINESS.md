@@ -13,19 +13,19 @@
 
 The final release gate on the current candidate working tree reported:
 
-- 635 Python tests passed, 14 skipped, 13 subtests passed.
+- 616 Python tests passed, 11 skipped, 9 subtests passed.
 - Release asset audit passed: 172 retained product image assets; no tracked
   screenshot/runtime media.
 - Direct dependency/license-source audit passed: third-party dependencies are
-  locked to public PyPI; LGPLv3 dependencies and PDFium redistribution
-  requirements are explicitly flagged for future binary work.
+  locked to public PyPI; no private/Git/external-path dependency is present.
+  A future binary still requires a complete transitive redistribution audit.
 - OpenAI-compatible protocol audit passed: runtime inference uses only Chat
   Completions; vendor Gemini API mode, model-list discovery, separate audio
   transcription endpoint and legacy API environment fallbacks are absent.
 - Release brand audit passed.
 - Markdown URL injection regression passed for 9 malicious/safe cases.
 - Windows source smoke passed with CPython 3.12.10 / Tcl-Tk 8.6.15.
-- Source smoke found 8 product icons, 164 animation frames, 10 bundled plugins
+- Source smoke found 8 product icons, 164 animation frames, 9 bundled plugins
   and a healthy loopback Screenshot Chat server.
 - Locked source distribution and wheel build completed successfully.
 
@@ -69,14 +69,14 @@ Current local evidence:
 
 - PyInstaller build completed.
 - Frozen release-smoke exited 0.
-- Frozen smoke verified Tcl/Tk 8.6.15, all product assets, 10 bundled plugins
+- Frozen smoke verified Tcl/Tk 8.6.15, all product assets and bundled plugins
   and loopback Screenshot Chat assets/server.
 - Desktop startup with `--open-chat` stayed alive and exposed the visible
   window title `SnapArc Chat`.
 
-Binary publication remains blocked by clean-machine acceptance, LGPL/PDFium
-redistribution compliance, optional WebView-mode interactive acceptance and
-the later signing/installer/update policy.
+Binary publication remains blocked by clean-machine acceptance, a complete
+transitive redistribution audit, optional WebView-mode interactive acceptance
+and the later signing/installer/update policy.
 
 ## Remaining gates before GitHub source-alpha publication
 

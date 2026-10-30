@@ -1,3 +1,4 @@
+
 from dataclasses import dataclass, field
 
 
@@ -20,16 +21,11 @@ def coerce_timeout(value, default=120.0):
         return float(default)
 
 
-def platform_from_api(api: str) -> str:
-    del api
-    return "openai"
-
-
 @dataclass(frozen=True)
 class ProviderConfig:
     name: str
     api: str = "openai-completions"
-    platform: str = "openai"
+    platform: str = "openai-compatible"
     base_url: str = ""
     api_key: str = ""
     timeout: float = 120.0

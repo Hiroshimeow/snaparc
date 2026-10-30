@@ -1,3 +1,4 @@
+
 [project]
 name = "snaparc"
 version = "0.0.1"
@@ -9,20 +10,17 @@ dependencies = [
     "customtkinter",
     "keyboard",
     "numpy",
-    "openai",
+    "httpx>=0.28,<1",
     "pillow",
     "pyautogui",
-    "pynput",
     "pygments",
     "pyperclip",
     "pywebview",
-    "pystray",
     "python-dotenv",
     "requests",
     "soundcard",
     "soundfile",
     "pypdf>=6.14.2",
-    "pypdfium2",
     "tomli>=1; python_version < '3.11'",
 ]
 

@@ -44,8 +44,8 @@ uv run python main.py
 ## Model/provider protocol
 
 SnapArc has one inference protocol: **OpenAI-compatible Chat Completions**.
-Every text, image, audio and native Pi-RPC inference path ultimately calls
-`chat.completions.create` against the provider `baseUrl` configured in
+Every text, image, audio and native Pi-RPC inference path ultimately sends
+`POST <baseUrl>/chat/completions` using the provider configuration in
 `config.yaml`.
 
 - Gemini, Claude, GPT or other names may appear as **model IDs** behind an
@@ -53,15 +53,12 @@ Every text, image, audio and native Pi-RPC inference path ultimately calls
 - Audio transcription is sent as an `input_audio` content part through Chat
   Completions; SnapArc does not call a separate audio transcription endpoint.
 - Model IDs are configured locally; SnapArc does not call `/models` discovery.
-- Legacy `chat_completions` spelling is canonicalized to
-  `openai-completions`; vendor-specific API modes such as `google-gemini`
-  are rejected.
+- The provider `api` value must be exactly `openai-completions`;
+  vendor-specific modes and legacy aliases are rejected.
 - Provider endpoint/key/model values come from `config.yaml` and the local
-  secret store. There is no `NEW_API_*` or vendor-key fallback path.
-
-The Python `openai` package is used only as the public client library for this
-OpenAI-compatible wire protocol; the endpoint is not hard-coded to OpenAI's
-host.
+  secret store. There is no `NEW_API_*`, vendor-key or provider fallback path.
+- SnapArc uses `httpx` directly for the OpenAI-compatible wire protocol; it
+  does not depend on a vendor SDK or hard-code an OpenAI cloud host.
 
 ## Privacy and AI provider consent
 
@@ -140,8 +137,8 @@ acceptance requires separate authorization and bounded request budgets; see
 
 `SnapArc.spec` and `scripts/build_windows.ps1` produce an experimental
 PyInstaller `onedir` build for engineering validation. It is **not** part of
-v0.0.1 source-alpha publication. Binary redistribution has separate LGPL,
-PDFium, clean-machine, signing and installer gates.
+v0.0.1 source-alpha publication. Binary redistribution has separate full
+transitive-license, clean-machine, signing and installer gates.
 
 ## Repository layout
 

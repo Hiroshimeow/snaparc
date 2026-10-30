@@ -27,10 +27,12 @@ class HotkeyRoutingStateTests(unittest.TestCase):
         app.follow_manager = types.SimpleNamespace(
             build_history=lambda: [], add_exchange=lambda *_args: None
         )
-        app.gemini = MagicMock()
-        app.gemini.model = "provider/model-a"
-        app.gemini.prompt_type = "prompt_translate"
-        app.gemini.get_prompt.side_effect = lambda key, fallback_key="prompt_translate": f"prompt:{key}"
+        app.model_client = MagicMock()
+        app.model_client.model = "provider/model-a"
+        app.model_client.prompt_type = "prompt_translate"
+        app.model_client.get_prompt.side_effect = lambda key, fallback_key="prompt_translate": f"prompt:{key}"
+        app.model_client.set_prompt_type.side_effect = lambda value: setattr(app.model_client, "prompt_type", value)
+        app.model_client.set_model.side_effect = lambda value: setattr(app.model_client, "model", value)
         app.root = MagicMock()
         app._clipboard_transaction_lock = threading.Lock()
         app.run_flag = 0
@@ -122,7 +124,6 @@ class HotkeyRoutingStateTests(unittest.TestCase):
         app = self.make_app()
         app.image_pause = object()
         app.input_handler = MagicMock()
-        app.gemini._save_config = MagicMock()
         app.toggle_pause()
         new_icon = object()
 
@@ -137,7 +138,6 @@ class HotkeyRoutingStateTests(unittest.TestCase):
 
     def test_set_prompt_type_while_running_updates_animator_icon(self):
         app = self.make_app()
-        app.gemini._save_config = MagicMock()
         new_icon = object()
 
         app.set_prompt_type("prompt_summarize", new_icon)
@@ -151,8 +151,8 @@ class HotkeyRoutingStateTests(unittest.TestCase):
         by_id = {item["id"]: item for item in config["hotkeys"]}
 
         self.assertEqual(by_id["TransToVietnamese"]["prompt_type"], "prompt_translate")
-        self.assertIn("tiếng nhật", by_id["TransToJapanese"]["system_prompt"].lower())
-        self.assertIn("tiếng anh", by_id["TransToEnglish"]["system_prompt"].lower())
+        self.assertIn("japanese", by_id["TransToJapanese"]["system_prompt"].lower())
+        self.assertIn("english", by_id["TransToEnglish"]["system_prompt"].lower())
         self.assertEqual(by_id["SummarizeContent"]["prompt_type"], "prompt_summarize")
         self.assertEqual(by_id["FixPrompt"]["prompt_type"], "prompt_fix_grammar")
         self.assertEqual(by_id["AnalyzeExpert"]["keys"], "ctrl + shift + alt + a")
@@ -169,20 +169,20 @@ class HotkeyRoutingStateTests(unittest.TestCase):
         image = Image.new("RGB", (1, 1))
         with patch("main.ImageGrab.grabclipboard", return_value=image):
             image_app._process_clipboard_on_main_thread(hotkey)
-        image_kwargs = image_app.gemini.process_image.call_args.kwargs
+        image_kwargs = image_app.model_client.process_image.call_args.kwargs
         self.assertEqual(image_kwargs["custom_prompt_text"], hotkey["system_prompt"])
 
         text_app = self.make_app()
         text_app.root.clipboard_get.return_value = "hello"
         with patch("main.ImageGrab.grabclipboard", return_value=None):
             text_app._process_clipboard_on_main_thread(hotkey)
-        text_kwargs = text_app.gemini.send_text_message.call_args.kwargs
+        text_kwargs = text_app.model_client.send_text_message.call_args.kwargs
         self.assertTrue(text_kwargs["text_prompt"].startswith(hotkey["system_prompt"] + "\n\nContent:\n"))
 
     def test_named_hotkeys_select_prompt_for_next_snap(self):
         app = self.make_app()
         app.root.after.side_effect = lambda _delay, fn, *args: fn(*args)
-        app.gemini.prompt_type = "prompt_summarize"
+        app.model_client.prompt_type = "prompt_summarize"
         queued_workers = []
 
         class QueuedThread:
@@ -207,7 +207,7 @@ class HotkeyRoutingStateTests(unittest.TestCase):
                     app._process_clipboard(
                         {"id": hotkey_id, "prompt_type": prompt_type, "auto_copy": False}
                     )
-                    self.assertEqual(app.gemini.prompt_type, prompt_type)
+                    self.assertEqual(app.model_client.prompt_type, prompt_type)
                     self.assertIs(app.current_icon, expected_icon)
                     self.assertIs(app.animator.current_icon, expected_icon)
                     self.assertIs(app.icon.icon, expected_icon)
@@ -218,8 +218,8 @@ class HotkeyRoutingStateTests(unittest.TestCase):
                 callback(*args)
             show_window.assert_not_called()
 
-        self.assertEqual(app.gemini._save_config.call_count, len(cases))
-        requests = app.gemini.process_image.call_args_list
+        self.assertEqual(app.model_client.set_prompt_type.call_count, len(cases))
+        requests = app.model_client.process_image.call_args_list
         self.assertEqual(
             [request.kwargs["custom_prompt_text"] for request in requests],
             [f"prompt:{prompt_type}" for _, prompt_type, _ in cases],
@@ -239,10 +239,10 @@ class HotkeyRoutingStateTests(unittest.TestCase):
         ) as snapshot:
             app._process_clipboard(hotkey)
 
-        self.assertEqual(app.gemini.prompt_type, "prompt_fix_grammar")
+        self.assertEqual(app.model_client.prompt_type, "prompt_fix_grammar")
         snapshot.assert_not_called()
-        app.gemini.send_text_message.assert_not_called()
-        app.gemini.process_image.assert_not_called()
+        app.model_client.send_text_message.assert_not_called()
+        app.model_client.process_image.assert_not_called()
 
     def test_empty_clipboard_still_selects_summary_for_snap(self):
         app = self.make_app()
@@ -252,13 +252,13 @@ class HotkeyRoutingStateTests(unittest.TestCase):
                 {"id": "SummarizeContent", "prompt_type": "prompt_summarize", "auto_copy": False}
             )
 
-        self.assertEqual(app.gemini.prompt_type, "prompt_summarize")
-        app.gemini.send_text_message.assert_not_called()
-        app.gemini.process_image.assert_not_called()
+        self.assertEqual(app.model_client.prompt_type, "prompt_summarize")
+        app.model_client.send_text_message.assert_not_called()
+        app.model_client.process_image.assert_not_called()
 
     def test_custom_system_prompt_hotkey_keeps_selected_snap_mode(self):
         app = self.make_app()
-        app.gemini.prompt_type = "prompt_summarize"
+        app.model_client.prompt_type = "prompt_summarize"
         app.root.after.side_effect = lambda _delay, fn, *args: fn(*args)
         with patch.object(app, "_snapshot_clipboard_payload", return_value=("text", "hello")):
             app._process_clipboard(
@@ -270,10 +270,10 @@ class HotkeyRoutingStateTests(unittest.TestCase):
                 }
             )
 
-        self.assertEqual(app.gemini.prompt_type, "prompt_summarize")
-        app.gemini._save_config.assert_not_called()
+        self.assertEqual(app.model_client.prompt_type, "prompt_summarize")
+        app.model_client._save_config.assert_not_called()
         self.assertTrue(
-            app.gemini.send_text_message.call_args.kwargs["text_prompt"].startswith("Translate to Japanese")
+            app.model_client.send_text_message.call_args.kwargs["text_prompt"].startswith("Translate to Japanese")
         )
 
     def test_paused_hotkey_does_not_select_prompt(self):
@@ -282,7 +282,7 @@ class HotkeyRoutingStateTests(unittest.TestCase):
         app._process_clipboard({"id": "FixPrompt", "prompt_type": "prompt_fix_grammar"})
 
         app.root.after.assert_not_called()
-        self.assertEqual(app.gemini.prompt_type, "prompt_translate")
+        self.assertEqual(app.model_client.prompt_type, "prompt_translate")
 
     def test_auto_copy_false_processes_existing_clipboard_without_copy_transaction(self):
         app = self.make_app()
@@ -333,7 +333,7 @@ class HotkeyRoutingStateTests(unittest.TestCase):
 
         prompts = [
             call.kwargs["text_prompt"]
-            for call in app.gemini.send_text_message.call_args_list
+            for call in app.model_client.send_text_message.call_args_list
         ]
         self.assertTrue(prompts[0].endswith("Content:\nTEXT_A"))
         self.assertTrue(prompts[1].endswith("Content:\nTEXT_B"))
@@ -394,7 +394,7 @@ class HotkeyRoutingStateTests(unittest.TestCase):
 
         prompts = [
             call.kwargs["text_prompt"]
-            for call in app.gemini.send_text_message.call_args_list
+            for call in app.model_client.send_text_message.call_args_list
         ]
         self.assertTrue(prompts[0].endswith("Content:\nTEXT_A"))
         self.assertTrue(prompts[1].endswith("Content:\nTEXT_B"))
@@ -430,13 +430,13 @@ class HotkeyRoutingStateTests(unittest.TestCase):
             for callback, args in scheduled:
                 callback(*args)
 
-        app.gemini.process_image.assert_called_once()
-        routed_image = app.gemini.process_image.call_args.args[0]
+        app.model_client.process_image.assert_called_once()
+        routed_image = app.model_client.process_image.call_args.args[0]
         self.assertIsNot(routed_image, image_a)
         self.assertEqual(routed_image.getpixel((0, 0)), image_a.getpixel((0, 0)))
-        app.gemini.send_text_message.assert_called_once()
+        app.model_client.send_text_message.assert_called_once()
         self.assertTrue(
-            app.gemini.send_text_message.call_args.kwargs["text_prompt"].endswith(
+            app.model_client.send_text_message.call_args.kwargs["text_prompt"].endswith(
                 "Content:\nTEXT_B"
             )
         )
@@ -466,7 +466,7 @@ class HotkeyRoutingStateTests(unittest.TestCase):
 
         copy_mock.assert_not_called()
         self.assertTrue(
-            app.gemini.send_text_message.call_args.kwargs["text_prompt"].endswith(
+            app.model_client.send_text_message.call_args.kwargs["text_prompt"].endswith(
                 "Content:\nTEXT_A"
             )
         )
@@ -474,7 +474,7 @@ class HotkeyRoutingStateTests(unittest.TestCase):
     def test_image_dispatch_captures_model_before_later_tray_change(self):
         app = self.make_app()
         app._process_image_async = MagicMock()
-        app.gemini.model = "provider/model-a"
+        app.model_client.model = "provider/model-a"
 
         class ImmediateThread:
             def __init__(self, target, args, **_kwargs):
@@ -489,14 +489,14 @@ class HotkeyRoutingStateTests(unittest.TestCase):
                 "image.png", "20260808_120000", False, source_label="Mouse snap"
             )
 
-        app.gemini.model = "provider/model-b"
+        app.model_client.model = "provider/model-b"
         args = app._process_image_async.call_args.args
         self.assertEqual(args[-2], "provider/model-a")
         self.assertEqual(args[-1], "Trans")
 
     def test_image_worker_uses_frozen_dispatch_model_and_prompt(self):
         app = self.make_app()
-        app.gemini.model = "provider/model-b"
+        app.model_client.model = "provider/model-b"
 
         app._process_image_async(
             "image.png",
@@ -509,24 +509,24 @@ class HotkeyRoutingStateTests(unittest.TestCase):
             request_prompt_name="Trans",
         )
 
-        kwargs = app.gemini.process_image.call_args.kwargs
+        kwargs = app.model_client.process_image.call_args.kwargs
         self.assertEqual(kwargs["custom_prompt_text"], "prompt A")
         self.assertEqual(kwargs["model_full_name"], "provider/model-a")
 
     def test_inflight_result_uses_dispatch_time_model_and_prompt_identity(self):
         app = self.make_app()
-        app.gemini.model = "provider/model-b"
-        app.gemini.prompt_type = "prompt_summarize"
+        app.model_client.model = "provider/model-b"
+        app.model_client.prompt_type = "prompt_summarize"
         app.root.after.side_effect = lambda _delay, fn, *args: fn(*args)
         app.screenshots_dir = "missing-test-screenshots"
         app.history_manager = MagicMock()
         app.recorder = types.SimpleNamespace(get_duration=lambda: 0)
 
         packet = types.SimpleNamespace(ans="ok")
-        with patch("main.DataPacket.from_gemini_result", return_value=packet) as packet_factory, patch(
+        with patch("main.DataPacket.from_model_result", return_value=packet) as packet_factory, patch(
             "main.show_floating_window"
         ):
-            app.gemini_callback(
+            app.model_callback(
                 {"text": "ok"},
                 timestamp_str="20260808_120000",
                 is_comparison_rerun=False,
@@ -547,7 +547,7 @@ class HotkeyRoutingStateTests(unittest.TestCase):
 
         app.set_model("provider/model-b")
 
-        app.gemini.set_model.assert_called_once_with("provider/model-b")
+        app.model_client.set_model.assert_called_once_with("provider/model-b")
         app.root.after.assert_called_once_with(
             0, app._refresh_float_window_models, "provider/model-b"
         )

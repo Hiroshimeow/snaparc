@@ -231,7 +231,7 @@ class QuickPromptPopup:
         self.initial_text = initial_text or ""
         self.attachments: List[PopupAttachment] = []
         self.images: List[Any] = list(initial_images or [])
-        self.active_model_label = active_model_label or "aistudio_api/gemini-2.5-flash"
+        self.active_model_label = active_model_label or "(no model configured)"
         self.on_escalate_pi = on_escalate_pi
 
         self.window: Optional[tk.Toplevel] = None

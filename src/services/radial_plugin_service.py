@@ -14,7 +14,7 @@ Key capabilities:
 2. Persistent Last-Used Parameter Store (`RadialParamStore` -> `data/radial_plugin_params.json`):
    - Remembers the user's most recent parameter values per plugin for instant 1-key (`Enter`) re-runs.
    - Dynamically resolves `{file_dir}` / `{file_path}` defaults to the root directory of
-     any dragged/selected input file (e.g. `pdf2png` and `png_resize`).
+     any dragged/selected input file (for example `png_resize`).
 3. Flexible Command & Script Execution:
    - Supports `uv run <script>.py`, `python <script>.py`, `.ps1`, `.mjs`, `.bat`, or arbitrary binaries.
    - Parses inline CLI flags from command strings (e.g. `uv run a.py --root 11235813x --host 0.0.0.0`,
@@ -277,7 +277,7 @@ class RadialParamStore:
         for param in spec.params:
             raw_def = "" if param.default is None else str(param.default).strip()
             # When a file is dragged onto the wheel and the parameter default is `{file_dir}`
-            # (e.g. `output_path` for pdf2png / png_resize), always default to that file's root folder!
+            # (e.g. `output_path` for png_resize), always default to that file's root folder!
             if raw_def in self.DYNAMIC_FILE_DIR_TOKENS and has_active_file:
                 prefilled[param.name] = self.resolve_default_value(param, active_files)
                 continue
@@ -463,7 +463,7 @@ def _simple_yaml_parse(raw_text: str) -> Dict[str, Any]:
 # are not auto-enabled until the user explicitly opts into custom plugins.
 BUNDLED_PLUGIN_SCRIPTS = frozenset({
     "a.py", "ask_pi_agent.py", "clean_workspace.py", "extract_table.py",
-    "format_json.py", "ocr_clipboard.py", "pdf2png.py", "png_resize.py",
+    "format_json.py", "ocr_clipboard.py", "png_resize.py",
     "summarize_doc.py", "translate_instant.py",
 })
 
@@ -686,20 +686,6 @@ class RadialPluginService:
     @staticmethod
     def _default_specs() -> List[RadialPluginSpec]:
         return [
-            RadialPluginSpec(
-                id="pdf2png",
-                name="PDF -> PNG",
-                icon="📄",
-                badge="PDF",
-                description="Convert PDF pages to PNG images",
-                script="plugins/pdf2png.py",
-                input_mode="file",
-                file_extensions=[".pdf"],
-                params=[
-                    RadialParamSpec(name="dpi", flag="--dpi", label="Resolution DPI (--dpi)", type="int", default=150),
-                    RadialParamSpec(name="output_path", flag="--output-path", label="Output Path (default = root PDF)", type="path", default="{file_dir}"),
-                ],
-            ),
             RadialPluginSpec(
                 id="png_resize",
                 name="Image Resize",

@@ -23,7 +23,7 @@ class ModelRegistryTests(unittest.TestCase):
         target = ModelRegistry(manager).resolve("cliproxy/gemini-3-flash")
 
         self.assertEqual(target.provider.name, "cliproxy")
-        self.assertEqual(target.provider.platform, "openai")
+        self.assertEqual(target.provider.platform, "openai-compatible")
         self.assertEqual(target.provider.timeout, 55.0)
         self.assertFalse(target.provider.trust_env)
         self.assertEqual(target.provider.extra_headers, {"X-Test": "1"})

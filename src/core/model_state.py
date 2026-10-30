@@ -1,3 +1,4 @@
+
 """Single Source of Truth for Active Provider & Model State (v1.1)."""
 
 from __future__ import annotations
@@ -36,16 +37,10 @@ class ModelStateStore:
     def __init__(
         self,
         config_manager: Any,
-        event_bus_or_gemini: Any = None,
         event_bus: AppEventBus | None = None,
     ) -> None:
         self.config_manager = config_manager
-        if isinstance(event_bus_or_gemini, AppEventBus):
-            self.gemini_engine = None
-            self.event_bus = event_bus_or_gemini
-        else:
-            self.gemini_engine = event_bus_or_gemini
-            self.event_bus = event_bus or AppEventBus.get_instance()
+        self.event_bus = event_bus or AppEventBus.get_instance()
         self.bus = self.event_bus
         self._lock = threading.RLock()
         self._provider: str = ""
@@ -93,10 +88,6 @@ class ModelStateStore:
                 primary = str(self.config_manager.get("agents.defaults.model.primary", "") or "").strip()
                 if not primary:
                     primary = str(self.config_manager.get("screenshot_chat.default_model", "") or "").strip()
-            if (not primary or (all_models and primary not in all_models)) and self.gemini_engine is not None:
-                cand = str(getattr(self.gemini_engine, "model", "") or "").strip()
-                if cand and (not all_models or cand in all_models):
-                    primary = cand
             if not primary and all_models:
                 primary = next(iter(all_models.keys()))
             self._apply_locked(primary, source="config")
@@ -122,14 +113,6 @@ class ModelStateStore:
             if "/" not in clean and self._provider:
                 clean = f"{self._provider}/{clean}"
             self._apply_locked(clean, source=source)
-
-            if self.gemini_engine is not None:
-                self.gemini_engine.model = self._full_name
-                self.gemini_engine.provider = self._provider
-                llm_svc = getattr(self.gemini_engine, "llm_service", None)
-                if llm_svc is not None:
-                    llm_svc.model = self._full_name
-                    llm_svc.provider = self._provider
 
             if persist and hasattr(self.config_manager, "set_many"):
                 try:
