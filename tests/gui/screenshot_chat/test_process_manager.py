@@ -51,7 +51,7 @@ class ScreenshotChatProcessManagerTests(unittest.TestCase):
 
         self.assertTrue(chosen.endswith(".venv\\Scripts\\python.exe"))
 
-    def test_spawn_child_passes_token_but_masks_it_in_logged_command(self):
+    def test_spawn_child_passes_token_in_env_not_process_args(self):
         controller = FakeController()
         manager = ScreenshotChatProcessManager(controller)
         manager.server = mock.Mock(base_url="http://127.0.0.1:1234", token="s3cret-token")
@@ -59,6 +59,7 @@ class ScreenshotChatProcessManagerTests(unittest.TestCase):
 
         def fake_popen(command, **kwargs):
             captured["command"] = list(command)
+            captured["env"] = dict(kwargs["env"])
             ready_file = command[command.index("--ready-file") + 1]
             Path(ready_file).write_text("ready", encoding="utf-8")
             return FakeProcess()
@@ -67,11 +68,12 @@ class ScreenshotChatProcessManagerTests(unittest.TestCase):
             manager._spawn_child()
 
         command = captured["command"]
-        self.assertIn("--token=s3cret-token", command)
+        self.assertNotIn("--token=s3cret-token", command)
+        self.assertEqual(captured["env"]["SNAPARC_CHAT_SESSION_TOKEN"], "s3cret-token")
         logged = " ".join(str(call.args[0]) for call in printed.call_args_list if call.args)
         self.assertIn("child command=", logged)
         self.assertNotIn("s3cret-token", logged)
-        self.assertIn("--token=***", logged)
+        self.assertNotIn("--token=", logged)
 
     def test_dash_prefixed_token_survives_child_argument_parsing(self):
         from src.gui.screenshot_chat import webview_app
@@ -84,6 +86,7 @@ class ScreenshotChatProcessManagerTests(unittest.TestCase):
 
         def fake_popen(command, **kwargs):
             captured["command"] = list(command)
+            captured["env"] = dict(kwargs["env"])
             Path(command[command.index("--ready-file") + 1]).write_text("ready", encoding="utf-8")
             return FakeProcess()
 
@@ -94,12 +97,13 @@ class ScreenshotChatProcessManagerTests(unittest.TestCase):
 
         command = captured["command"]
         self.assertEqual(command[2], "src.gui.screenshot_chat.webview_app")
-        with mock.patch("sys.argv", ["webview_app", *command[3:]]):
+        with mock.patch.dict("os.environ", captured["env"]), mock.patch("sys.argv", ["webview_app", *command[3:]]):
             args = webview_app._parse_args()
         self.assertEqual(args.token, token)
+        self.assertFalse(any("--token=" in arg for arg in command))
         logged = " ".join(str(call.args[0]) for call in printed.call_args_list if call.args)
         self.assertNotIn(token, logged)
-        self.assertIn("--token=***", logged)
+        self.assertNotIn("--token=", logged)
 
         # The previous two-entry form is what argparse rejected for dash-prefixed tokens.
         legacy = [part for part in command[3:] if not part.startswith("--token=")] + ["--token", token]

@@ -26,7 +26,7 @@ main.py is currently the application composition root, not a stable plugin SDK. 
 - [ ] No secrets or personal information in the NEW repo Git history
 - [ ] Independent review P0 findings addressed
 - [ ] Legal rights and dependency licenses audited, explicit LICENSE added
-- [ ] Clean install and uninstall on Windows 10/11
+- [ ] Clean install and uninstall on Windows 10/11 with CPython/Tcl-Tk-compatible distribution
 - [ ] Full offline tests pass in reproducible environment
 - [ ] Approved end-to-end screenshots, audio, WebView2, hotkeys and plugin tests
 - [ ] Privacy/permission explanation for API uploads and local files
@@ -38,3 +38,4 @@ main.py is currently the application composition root, not a stable plugin SDK. 
 SnapArc is a context-first desktop productivity toolkit rather than a general-purpose AI chatbot. In demos, show selecting screen/file/clipboard context and invoking a local action with minimal context switching.
 
 Historical v2.x references may remain in compatibility tests and module internals during migration; the release identity is version 0.0.1.
+

@@ -19,10 +19,16 @@ jobs:
         shell: pwsh
         run: |
           go run github.com/zricethezav/gitleaks/v8@v8.18.4 detect --source . --redact --exit-code 1
-      - uses: astral-sh/setup-uv@v6
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Locked environment
-        run: uv sync --locked --python 3.12 --group dev
+      - uses: astral-sh/setup-uv@v6
+      - name: Locked environment using CPython with Tcl/Tk
+        shell: pwsh
+        run: |
+          $python = python -c "import sys, tkinter; print(sys.executable)"
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          uv sync --locked --python $python --group dev
       - name: Offline tests
-        run: uv run --locked --python 3.12 python -m pytest -q tests
+        shell: pwsh
+        run: uv run --locked python -m pytest -q tests

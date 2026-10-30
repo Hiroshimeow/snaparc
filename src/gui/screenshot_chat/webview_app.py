@@ -128,7 +128,7 @@ def _parse_args():
     parser.add_argument("--poll-interval-ms", type=int, default=900)
     parser.add_argument("--ready-file", default="")
     parser.add_argument("--gui", default="edgechromium")
-    parser.add_argument("--token", default="")
+    parser.add_argument("--token", default=os.environ.get("SNAPARC_CHAT_SESSION_TOKEN", ""))
     return parser.parse_args()
 
 
@@ -169,7 +169,7 @@ def main():
         bridge_holder["poller"].start()
 
     window = webview.create_window(
-        "Screenshot Shot Chat",
+        "SnapArc Chat",
         url=page_url,
         js_api=bridge,
         width=900,

@@ -171,7 +171,6 @@ class ScreenshotChatProcessManager:
             str(ready_file),
             "--gui",
             gui,
-            f"--token={self.server.token}",
         ]
         self._last_startup_log_text = ""
         self._last_startup_log_file = str(log_file)
@@ -187,6 +186,8 @@ class ScreenshotChatProcessManager:
         print(f"ScreenshotChat: child command={subprocess.list2cmdline(self._mask_token(command))}")
         creationflags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
         child_env = os.environ.copy()
+        # Keep the transient session token out of the OS process command line.
+        child_env["SNAPARC_CHAT_SESSION_TOKEN"] = self.server.token
         child_env.setdefault("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS", LOW_MEMORY_WEBVIEW2_ARGS)
         log_handle = open(log_file, "w", encoding="utf-8")
         try:

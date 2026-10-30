@@ -18,7 +18,7 @@
 # ]
 # ///
 
-# main.py — Screens-Trans-Chatbot v2.4
+# main.py — SnapArc v0.0.1
 import ctypes
 from datetime import datetime
 from functools import partial

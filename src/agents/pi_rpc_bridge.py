@@ -532,7 +532,7 @@ class NativePiRpcServer:
         toolset = PiTerminalToolset(cwd=cwd, trusted_roots=trusted_roots)
 
         sys_instructions = (
-            "You are Pi Sidecar Agent in Screens-Trans-Chatbot v2.4.\n"
+            "You are the optional SnapArc workspace chat assistant.\n"
             f"Workspace root: {cwd}\n"
             "Respond clearly in Markdown. When inspecting files or running commands, use the provided workspace tools."
         )

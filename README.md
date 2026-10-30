@@ -22,7 +22,7 @@ These workflows depend on local configuration, available providers, and Windows 
 ## Requirements
 
 - Windows 10/11 with an interactive desktop session.
-- Python 3.12 recommended for desktop use. The manifest permits Python >=3.10, but not every desktop dependency supports every newer Python version; Python 3.14+ is not verified.
+- Use official Windows CPython 3.12 installed with Tcl/Tk; uv-managed interpreters without Tcl/Tk can fail at GUI startup. The manifest permits Python >=3.10, but not every desktop dependency supports every newer Python version; Python 3.14+ is not verified.
 - [uv](https://docs.astral.sh/uv/) for dependency management.
 - Microsoft Edge WebView2 Runtime for the WebView chat interface.
 - Explicit provider/model configuration and credentials for remote AI features.
@@ -32,7 +32,7 @@ These workflows depend on local configuration, available providers, and Windows 
 Run from the project root:
 
 ```powershell
-uv sync --locked --python 3.12
+uv sync --locked --python (py -3.12 -c 'import sys; print(sys.executable)')
 uv run python main.py
 
 # Open the chat window at startup
@@ -58,7 +58,7 @@ For a local start, copy sample/config.example.yaml into the ignored config.yaml 
 Install development dependencies and run the automated suite:
 
 ```powershell
-uv sync --locked --python 3.12 --group dev
+uv sync --locked --python (py -3.12 -c 'import sys; print(sys.executable)') --group dev
 uv run python -m pytest -q tests
 ```
 
