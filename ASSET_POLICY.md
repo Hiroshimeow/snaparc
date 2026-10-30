@@ -7,11 +7,19 @@ assets under:
 
 - `src/animate/` — tray animation frames.
 - `src/icons/` — product and action icons such as translate, summarize,
-  capture, pause and voice state icons.
+  capture, pause and voice-state icons.
 
-These assets are treated separately from the MIT-licensed code until the final
-GitHub release approval records that the maintainer has the right to publish
-them. Do not infer asset rights from the repository's MIT code license.
+These assets are explicitly excluded from the repository's MIT code license.
+
+Subject to the maintainer's final rights attestation, the retained product
+assets are **all rights reserved**. They may be copied as necessary to clone,
+run and evaluate the unmodified SnapArc source-alpha repository. No separate
+license is granted to extract, modify, sublicense, sell, rebrand or redistribute
+the assets independently. Forks or redistributed code should replace these
+assets unless the applicable rights holder grants separate permission.
+
+The final GitHub approval must confirm that the maintainer has authority to
+publish these assets. Do not infer asset ownership from Git history.
 
 ## Excluded user/runtime media
 

@@ -1,4 +1,4 @@
-﻿Except for product assets identified in ASSET_POLICY.md and branding covered by TRADEMARKS.md, eligible SnapArc source code is licensed as follows:
+﻿All files in this repository are licensed under the MIT terms below except the product assets in src/animate/ and src/icons/ identified by ASSET_POLICY.md, and the branding covered by TRADEMARKS.md.
 
 MIT License
 

@@ -51,9 +51,11 @@ privacy:
   allow_cloud_upload: true
 ```
 
-Only the boolean value `true` enables remote provider dispatch. Loopback AI
-providers remain local. The native Pi-RPC completion path applies the same
-remote-upload rule. Provider privacy and billing terms still apply.
+Only the boolean value `true` enables remote provider dispatch. Loopback
+providers are not gated; a local service may itself forward data to remote
+services under its own configuration. The native Pi-RPC completion path
+applies the same remote-upload rule. Provider privacy and billing terms still
+apply.
 
 Plugins are trusted local code, not a sandbox. Bundled plugins are enabled;
 unbundled plugin discovery requires explicit local opt-in:
