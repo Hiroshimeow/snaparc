@@ -1,0 +1,18 @@
+pystray
+Pillow
+pyperclip
+pywebview
+pynput
+pygments
+keyboard
+python-dotenv
+requests
+customtkinter
+pyautogui
+openai
+numpy
+soundcard
+soundfile
+pypdf>=6.14.2
+pypdfium2
+tomli>=1; python_version < "3.11"

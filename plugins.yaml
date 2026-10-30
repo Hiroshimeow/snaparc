@@ -1,0 +1,174 @@
+# Screens-Trans-Chatbot v2.4 — Dynamic Radial Plugin Wheel Configuration (Ctrl + Alt)
+# ====================================================================================
+# Supports 2 primary workflows:
+# 1. Mode 1 (Click & Drag Slice): Hold Ctrl + Alt, hold Left Mouse and drag into a slice
+#    to launch an app or script (e.g. `uv run plugins/a.py --root 11235813x --host 0.0.0.0`).
+#    - 0 params -> executes immediately!
+#    - N params -> opens dynamic Parameter Popup pre-filled with defaults & last-used values!
+# 2. Mode 2 (File Drag & Drop into Slice): Hold Ctrl + Alt and drag a file (.pdf, .png, .jpg)
+#    into a plugin slice (e.g. `pdf2png`, `png_resize`) and release.
+#    - Passes the dragged file as input and pops up compact parameter UI (e.g. `--dpi`,
+#      `--output-path` defaulting to root file folder, `--size` from 0.1 to 3.0).
+
+wheel:
+  hold_seconds: 0.18
+  outer_radius: 158
+  inner_radius: 56
+  deadzone_radius: 46
+  bg_color: "#0f172a"
+  sector_color: "#1e293b"
+  sector_hover_color: "#334155"
+  ring_border_color: "#38bdf8"
+  center_bg_color: "#090d16"
+  center_border_color: "#06b6d4"
+  text_color: "#f8fafc"
+  subtext_color: "#38bdf8"
+
+plugins:
+  - id: pdf2png
+    name: "PDF -> PNG"
+    icon: "📄"
+    badge: "PDF"
+    description: "Convert dragged/selected PDF into PNG pages (--dpi & --output-path)"
+    script: "plugins/pdf2png.py"
+    input_mode: "file"
+    file_extensions:
+      - ".pdf"
+    output_mode: "floating"
+    timeout_sec: 60
+    params:
+      - name: dpi
+        flag: "--dpi"
+        label: "Resolution DPI (--dpi)"
+        type: int
+        default: 150
+        min: 72
+        max: 600
+        choices:
+          - "72"
+          - "150"
+          - "200"
+          - "300"
+          - "600"
+      - name: output_path
+        flag: "--output-path"
+        label: "Output Path (default = root PDF)"
+        type: path
+        default: "{file_dir}"
+
+  - id: png_resize
+    name: "Image Resize"
+    icon: "🖼️"
+    badge: "RESIZE"
+    description: "Resize dragged/selected PNG/JPG image (--size 0.1=10% to 3.0=300%)"
+    script: "plugins/png_resize.py"
+    input_mode: "file"
+    file_extensions:
+      - ".png"
+      - ".jpg"
+      - ".jpeg"
+      - ".webp"
+      - ".bmp"
+    output_mode: "floating"
+    timeout_sec: 30
+    params:
+      - name: size
+        flag: "--size"
+        label: "Scale Factor (--size: 0.1=10% -> 3.0=300%)"
+        type: float
+        default: 0.5
+        min: 0.1
+        max: 3.0
+        choices:
+          - "0.1"
+          - "0.25"
+          - "0.5"
+          - "0.75"
+          - "1.25"
+          - "1.5"
+          - "2.0"
+          - "3.0"
+      - name: output_path
+        flag: "--output-path"
+        label: "Output Path (default = root image)"
+        type: path
+        default: "{file_dir}"
+
+  - id: script_a
+    name: "Run a.py"
+    icon: "🚀"
+    badge: "UV/PY"
+    description: "Run uv run plugins/a.py --root 11235813x --host 0.0.0.0"
+    script: "plugins/a.py"
+    runner: "uv"
+    input_mode: "none"
+    output_mode: "floating"
+    timeout_sec: 30
+    params:
+      - name: root
+        flag: "--root"
+        label: "Root Token / Dir (--root)"
+        type: string
+        default: "11235813x"
+      - name: host
+        flag: "--host"
+        label: "Bind Host (--host)"
+        type: string
+        default: "0.0.0.0"
+      - name: port
+        flag: "--port"
+        label: "Bind Port (--port)"
+        type: int
+        default: 8000
+
+  - id: ask_pi_agent
+    name: "Pi Sidecar"
+    icon: "🤖"
+    badge: "AGENT"
+    description: "Open Pi Sidecar Workspace with current file(s) or selection"
+    script: "plugins/ask_pi_agent.py"
+    action: "open_pi_chat"
+    input_mode: "files_or_clipboard"
+    output_mode: "chat_screen"
+    timeout_sec: 15
+
+  - id: ocr_clipboard
+    name: "Instant OCR"
+    icon: "🔍"
+    badge: "OCR"
+    description: "Extract structured text from image file or clipboard (0 params -> instant)"
+    script: "plugins/ocr_clipboard.py"
+    input_mode: "files_or_clipboard"
+    output_mode: "floating"
+    timeout_sec: 20
+
+  - id: extract_table
+    name: "Table -> MD/CSV"
+    icon: "📊"
+    badge: "TABLE"
+    description: "Convert table text or TSV/CSV into clean Markdown & CSV (instant)"
+    script: "plugins/extract_table.py"
+    input_mode: "clipboard"
+    output_mode: "floating"
+    timeout_sec: 15
+
+  - id: format_json
+    name: "Format JSON"
+    icon: "🧩"
+    badge: "JSON"
+    description: "Validate, repair, and pretty-print JSON / YAML from clipboard (instant)"
+    script: "plugins/format_json.py"
+    input_mode: "clipboard"
+    output_mode: "floating"
+    timeout_sec: 10
+
+  - id: clean_workspace
+    name: "Boost RAM"
+    icon: "⚡"
+    badge: "CLEAN"
+    description: "Free memory handles, prune old temp captures, and optimize runtime (instant)"
+    script: "plugins/clean_workspace.py"
+    action: "run_memory_cleanup"
+    input_mode: "none"
+    output_mode: "floating"
+    timeout_sec: 10

@@ -1,0 +1,28 @@
+﻿name: CI (offline, Windows)
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  safety-and-tests:
+    runs-on: windows-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Secret scan (tracked Git history)
+        shell: pwsh
+        run: |
+          go run github.com/zricethezav/gitleaks/v8@v8.18.4 detect --source . --redact --exit-code 1
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: '3.12'
+      - name: Locked environment
+        run: uv sync --locked --python 3.12 --group dev
+      - name: Offline tests
+        run: uv run --locked --python 3.12 python -m pytest -q tests

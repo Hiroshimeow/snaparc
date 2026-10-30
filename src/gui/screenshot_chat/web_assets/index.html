@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>STC Workspace — Pi-RPC & Multimodal Chat</title>
+  <style>
+/* __APP_CSS__ */
+  </style>
+</head>
+<body>
+  <div id="app" class="app-shell">
+    <div id="dropOverlay" class="drop-overlay" hidden>
+      <div class="drop-overlay-card">
+        <div class="drop-overlay-icon">📥</div>
+        <div class="drop-overlay-title">Drop screenshots, images, PDFs, or code files here</div>
+        <div class="drop-overlay-sub">Automatically attach to your active STC / Pi-RPC session</div>
+      </div>
+    </div>
+
+    <aside id="conversationRail" class="conversation-rail" aria-label="Conversation history">
+      <div class="rail-brand">
+        <div class="brand-lockup">
+          <span class="brand-emblem" aria-hidden="true">🏮</span>
+          <div>
+            <div class="product-label">STC Workspace</div>
+            <div class="product-caption">Pi-RPC · Multimodal v2.1</div>
+          </div>
+        </div>
+        <button id="railCollapseBtn" class="icon-btn" type="button" title="Collapse sidebar" aria-label="Collapse history">‹</button>
+      </div>
+      <button id="newChatBtn" class="new-chat-btn" type="button">＋ New Session</button>
+      <div id="railSessions" class="rail-sessions"></div>
+      <div class="rail-footer">
+        <button type="button" class="rail-action-btn" data-quick-slash="/compact" title="Compact session context (/compact)">🗜 Compact</button>
+        <button type="button" class="rail-action-btn" data-quick-slash="/fork" title="Branch conversation (/fork)">⑂ Fork</button>
+        <button type="button" class="rail-action-btn" data-quick-slash="/export" title="Export full HTML transcript (/export)">⤓ Export</button>
+      </div>
+    </aside>
+
+    <section class="conversation-pane">
+      <header class="conversation-header">
+        <div class="header-primary">
+          <button id="historyBtn" class="icon-btn history-btn" type="button" aria-label="Open conversation history">☰</button>
+          <div class="heading-copy">
+            <div id="title" class="title">New Chat</div>
+            <div class="header-caption">Ctrl+Shift+Alt+X · Drag &amp; Drop Files · Type / for Pi-RPC Commands</div>
+          </div>
+          <button id="closeBtn" class="icon-btn close-win-btn" type="button" title="Hide Workspace (Esc)" aria-label="Hide Screenshot Chat">✕</button>
+        </div>
+        <div class="header-controls">
+          <div id="modeToggle" class="mode-toggle" role="group" aria-label="Session mode">
+            <button type="button" data-mode="chat">💬 Chat</button>
+            <button type="button" data-mode="note">📝 Note</button>
+          </div>
+          <button id="modelBtn" class="pill model-pill" type="button" title="Switch LLM or Pi-RPC Model (/model)">Model</button>
+          <button id="autoReadBtn" class="pill" type="button" aria-pressed="false" title="Toggle automatic TTS readout">🔊 Auto-read off</button>
+          <button id="runtimeStatus" class="runtime-status ready" type="button" aria-label="Runtime status">
+            <span class="runtime-dot" aria-hidden="true"></span>
+            <span id="runtimeLabel">Ready</span>
+          </button>
+        </div>
+      </header>
+
+      <div id="menus" class="menus"></div>
+      <main id="messages" class="messages" aria-live="polite"></main>
+      <button id="jumpBottom" class="jump-bottom" type="button" hidden aria-label="Jump to latest message">↓ Latest</button>
+      <div id="status" class="status" hidden role="status"></div>
+      <section id="runtimeBanner" class="runtime-banner" hidden aria-live="polite"></section>
+
+      <section class="composer">
+        <div id="attachments" class="attachments" hidden></div>
+        <div class="composer-quickbar">
+          <button type="button" class="quick-chip" data-quick-action="held" title="Attach Shift+Snap held screenshots">📸 Held Snaps</button>
+          <button type="button" class="quick-chip" data-quick-action="clip" title="Attach image from clipboard">📋 Paste Image</button>
+          <button type="button" class="quick-chip" data-quick-action="upload" title="Attach local files or images">📎 Attach Files</button>
+          <button type="button" class="quick-chip" data-quick-slash="/pi" title="Switch to Pi-RPC Agent (/pi)">🤖 /pi</button>
+          <button type="button" class="quick-chip" data-quick-slash="/thinking high" title="Set high reasoning budget">🧠 Thinking: High</button>
+          <button type="button" class="quick-chip" data-quick-slash="/skills" title="Inspect skills">🧰 /skills</button>
+        </div>
+        <input id="osFileInput" type="file" multiple hidden accept=".png,.jpg,.jpeg,.webp,.bmp,.gif,.pdf,.docx,.txt,.md,.py,.js,.ts,.json,.yaml,.yml,.csv">
+        <div class="compose-row">
+          <button id="addBtn" class="tool-btn" type="button" title="Attachments, Pinned Snaps, System Prompts &amp; Pi-RPC Tools" aria-label="Add attachment or system prompt">＋</button>
+          <textarea id="input" rows="2" placeholder="Ask anything, paste images (Ctrl+V), drop files, or type / for Pi-RPC commands..." aria-label="Message"></textarea>
+          <button id="actionBtn" class="send-btn" type="button">Send ↵</button>
+        </div>
+      </section>
+    </section>
+  </div>
+  <script>
+/* __APP_JS__ */
+  </script>
+</body>
+</html>

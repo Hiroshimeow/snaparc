@@ -1,0 +1,79 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[codz]
+*$py.class
+*.so
+
+# Runtime & user-owned directories
+src/rec_list/
+src/screenshots/
+screenshots/
+html_backup/
+*.xml
+result.html
+diff.txt
+logs/
+output_frames/
+src/placeholder.txt
+deleted-folder/
+tests_runtime/
+.worktrees/
+prompts.toml
+stc.json
+history-xml/
+history_html/
+history-html/
+
+# Secret and token protection (NEVER commit credentials)
+.env
+*.env
+.env.*
+src/gui/.env
+src/models/oath_token_cache.json
+*token_cache*.json
+*.dpapi.json
+src/models/antigravity-accounts.local.json
+
+# Packaging / build / virtual environments
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+.venv/
+venv/
+ENV/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Installed JavaScript dependencies (reproduce from package lockfiles)
+node_modules/
+
+# Local configuration and application state
+/config.yaml
+/data/
+
+# Local agent state, planning scratch files, and generated bundles
+/.crew/
+/.pi-tasks/
+*.plan
+*.plan.*
+/screens-trans-chatbot*.zip
+
+# Editor and operating-system metadata
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

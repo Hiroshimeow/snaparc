@@ -1,0 +1,56 @@
+{
+  "models": {
+    "providers": {
+      "cliproxy": {
+        "api": "openai-completions",
+        "baseUrl": "https://example.invalid/v1",
+        "apiKey": "",
+        "models": [
+          "gpt-5.4",
+          "claude-sonnet-4-6",
+          "gemini-2.5-pro",
+          "gemini-2.5-flash"
+        ]
+      }
+    }
+  },
+  "hotkeys": [
+    {
+      "id": "TransToVietnamese",
+      "prompt_type": "prompt_translate",
+      "keys": "ctrl + shift + alt + v",
+      "system_prompt": "Translate to Vietnamese"
+    },
+    {
+      "id": "TransToJapanese",
+      "prompt_type": "prompt_translate",
+      "keys": "ctrl + shift + alt + j",
+      "system_prompt": "Dich sang tiếng nhật"
+    },
+    {
+      "id": "TransToEnglish",
+      "prompt_type": "prompt_translate",
+      "keys": "ctrl + shift + alt + e",
+      "system_prompt": "Dich sang tiếng anh"
+    },
+    {
+      "id": "SummarizeContent",
+      "prompt_type": "prompt_summarize",
+      "keys": "ctrl + shift + alt + s"
+    },
+    {
+      "id": "FixPrompt",
+      "prompt_type": "prompt_fix_grammar",
+      "keys": "ctrl + shift + alt + f"
+    },
+    {
+      "id": "AnalyzeExpert",
+      "prompt_type": "prompt_expert",
+      "keys": "ctrl + shift + alt + a"
+    }
+  ],
+  "screenshot_chat": {
+    "enabled": true,
+    "pi_primary_mode": true
+  }
+}

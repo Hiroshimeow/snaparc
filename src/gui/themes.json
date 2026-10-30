@@ -1,0 +1,42 @@
+{
+    "Dark Default": {
+        "bg": "#242424",
+        "my_bubble": "#005C4B",
+        "my_text": "white",
+        "other_bubble": "#333333",
+        "other_text": "white",
+        "input_bg": "#1A1A1A"
+    },
+    "Light Nord": {
+        "bg": "#ECEFF4",
+        "my_bubble": "#5E81AC",
+        "my_text": "white",
+        "other_bubble": "#D8DEE9",
+        "other_text": "#2E3440",
+        "input_bg": "#E5E9F0"
+    },
+    "Dracula": {
+        "bg": "#282a36",
+        "my_bubble": "#bd93f9",
+        "my_text": "#f8f8f2",
+        "other_bubble": "#44475a",
+        "other_text": "#f8f8f2",
+        "input_bg": "#21222c"
+    },
+    "Solarized Dark": {
+        "bg": "#002b36",
+        "my_bubble": "#268bd2",
+        "my_text": "#eee8d5",
+        "other_bubble": "#073642",
+        "other_text": "#93a1a1",
+        "input_bg": "#00212b"
+    },
+    "Black & White": {
+         "bg": "black",
+         "my_bubble": "#333333",
+         "my_text": "white",
+         "other_bubble": "#E0E0E0",
+         "other_text": "black",
+         "input_bg": "#1A1A1A"
+     }
+}
