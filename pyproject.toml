@@ -27,6 +27,7 @@ dependencies = [
 [dependency-groups]
 dev = [
     "pytest>=8.4.2",
+    "hatchling>=1.27,<2",
 ]
 
 [build-system]

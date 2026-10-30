@@ -37,7 +37,7 @@ uv run --locked python -m src.release_smoke
 if($LASTEXITCODE -ne 0){throw 'Windows source smoke failed'}
 uv run --locked python -m pytest -q tests
 if($LASTEXITCODE -ne 0){throw 'Offline tests failed'}
-uv build --offline
+uv build --offline --no-build-isolation
 if($LASTEXITCODE -ne 0){throw 'Source package build failed'}
 
 Write-Output 'SnapArc source-alpha automated release gate passed.'

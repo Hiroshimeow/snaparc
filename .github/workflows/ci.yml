@@ -52,4 +52,4 @@ jobs:
         run: uv run --locked python -m pytest -q tests
       - name: Source package build
         shell: pwsh
-        run: uv build --offline
+        run: uv build --offline --no-build-isolation
