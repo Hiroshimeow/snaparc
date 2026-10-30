@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # PLUGIN_META_JSON: {"id": "pdf2png", "name": "PDF -> PNG", "icon": "📄", "badge": "PDF", "description": "Convert PDF file(s) into high-DPI PNG pages with custom --dpi and --output-path", "input_mode": "file", "file_extensions": [".pdf"], "params": [{"name": "dpi", "flag": "--dpi", "label": "Resolution DPI (--dpi)", "type": "int", "default": 150, "min": 72, "max": 600, "choices": ["72", "150", "200", "300", "600"]}, {"name": "output_path", "flag": "--output-path", "label": "Output Directory (default = root PDF)", "type": "path", "default": "{file_dir}"}]}
 """
-External Radial Wheel Plugin: PDF -> PNG Converter (v2.4)
+External Radial Wheel Plugin: PDF -> PNG Converter (SnapArc)
 =========================================================
 Supports both Mode 1 (click-drag slice -> pick/confirm PDF & params) and Mode 2
 (hold Ctrl+Alt, drag a PDF file onto the PDF -> PNG slice, confirm --dpi and

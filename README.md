@@ -1,111 +1,135 @@
-# SnapArc v0.0.1 ? by HCU Lab
+# SnapArc v0.0.1 - by HCU Lab
 
-Free Windows desktop productivity toolkit with screenshot workflows, translation, audio processing, quick actions, and configurable plugins. The chatbot is an optional workflow, not the product identity.
+SnapArc is a free Windows desktop productivity toolkit for screenshot workflows,
+translation, audio, quick actions, and configurable local plugins. Chat is an
+optional workflow, not the product identity.
 
-> **Status:** free, public-source candidate (0.0.1 pre-alpha); NOT approved for release. Tests and security checks are required before distribution. Historical version labels in code are migration artifacts, not release evidence.
-> **Brand:** SnapArc by HCU Lab ? https://hcu-lab.me (proposed product page: https://snaparc.hcu-lab.me).
+> **Status:** source-only public-alpha candidate. It is not yet approved for
+> public release and is not a production-ready Windows installer.
+>
+> **Brand:** SnapArc by HCU Lab - https://hcu-lab.me. The proposed product page
+> is https://snaparc.hcu-lab.me.
 
-## Overview
-
-The application combines a system-tray interface, screenshot capture, a floating prompt window, a chat window, audio services, and a radial plugin menu. The codebase uses Python, Tk/customtkinter, WebView, and OpenAI-compatible provider APIs.
-
-### Main workflows
+## Main workflows
 
 - Capture a screen region and use it as context for a question or translation.
-- Collect screenshots with `Shift + Snap`, or open Quick Prompt with `Ctrl + Snap` / `Alt + Snap`.
+- Collect captures with `Shift + Snap`; open Quick Prompt with `Ctrl + Snap`
+  or `Alt + Snap`.
 - Open the radial plugin menu with `Ctrl + Alt + Hold`.
-- Open ScreenshotChat with `Ctrl + Shift + Alt + X`.
-- Use configured audio providers for recording, speech recognition, and read-aloud.
-
-These workflows depend on local configuration, available providers, and Windows desktop capabilities. Native drag-and-drop, clipboard import, and live model completion are distinct paths and require separate verification.
+- Open Screenshot Chat with `Ctrl + Shift + Alt + X`.
+- Record audio and use configured transcription/read-aloud providers.
+- Run bundled local tools for OCR, document conversion and text/file utilities.
 
 ## Requirements
 
 - Windows 10/11 with an interactive desktop session.
-- Use official Windows CPython 3.12 installed with Tcl/Tk; uv-managed interpreters without Tcl/Tk can fail at GUI startup. The manifest permits Python >=3.10, but not every desktop dependency supports every newer Python version; Python 3.14+ is not verified.
+- Official Windows CPython 3.12 installed with Tcl/Tk is the validated
+  development runtime. The manifest permits Python >=3.10.
 - [uv](https://docs.astral.sh/uv/) for dependency management.
-- Microsoft Edge WebView2 Runtime for the WebView chat interface.
-- Explicit provider/model configuration and credentials for remote AI features.
+- Microsoft Edge WebView2 Runtime for Screenshot Chat.
+- Provider credentials only for remote AI features you explicitly enable.
 
 ## Quick start
 
-Run from the project root:
+From the repository root:
 
 ```powershell
 uv sync --locked --python (py -3.12 -c 'import sys; print(sys.executable)')
+Copy-Item sample/config.example.yaml config.yaml
 uv run python main.py
-
-# Open the chat window at startup
-uv run python main.py --open-chat
 ```
 
-Use the commands above as the documented launch path. Local configuration is stored in `config.yaml`; runtime state belongs in `data/`. Neither should be committed. Example configuration files are available under `sample/`; review them before use and supply credentials locally.
+`config.yaml` and runtime state under `data/` are local and Git-ignored.
 
 ## Privacy and AI provider consent
 
-Cloud AI requests are disabled by default. To explicitly permit transmitting
-selected screenshots, text or audio to a configured provider, set
-privacy.allow_cloud_upload: true in your local, Git-ignored config.yaml
-(or the equivalent JSON object). Understand your configured provider's privacy
-and billing terms before opting in. Disabling it again prevents subsequent
-provider dispatch through LLMService. Third-party Pi workflows or plugins
-have separate trust implications; run only plugins and tools you approve.
-Unbundled scripts are disabled by default; opt in only when you trust them
-by setting radial_plugins.allow_user_plugins to true in local config.yaml.
+Remote AI requests are disabled by default. To explicitly permit transmitting
+selected text, screenshots or audio to a configured remote provider, set:
 
-## Runtime notes
+```yaml
+privacy:
+  allow_cloud_upload: true
+```
 
-The optional Screenshot Chat workflow currently uses the Python JSONL bridge in `src/agents/pi_rpc_bridge.py`, with an OpenAI-compatible completion loop and workspace tools. Pi-related names and CLI discovery helpers do not establish an external Node Pi SDK integration.
+Only the boolean value `true` enables remote provider dispatch. Loopback AI
+providers remain local. The native Pi-RPC completion path applies the same
+remote-upload rule. Provider privacy and billing terms still apply.
 
-Provider-dependent features need separate end-to-end checks. A queued action, an existing output file, or a nonempty response alone is not sufficient evidence of successful translation, rendering, or recognition.
+Plugins are trusted local code, not a sandbox. Bundled plugins are enabled;
+unbundled plugin discovery requires explicit local opt-in:
 
-## Release status
+```yaml
+radial_plugins:
+  allow_user_plugins: true
+```
 
-SnapArc v0.0.1 is free pre-alpha source, not a production release. Before publishing, complete RELEASE-READINESS.md, review SECURITY.md and validate every enabled plugin. Plugins currently execute as trusted local code. An MIT license has been prepared, but ownership and dependency-license clearance remain pending. A public GitHub repository is not a Windows installation artifact.
+## Security model
 
-For a local start, copy sample/config.example.yaml into the ignored config.yaml and configure your own credentials. The example endpoint is deliberately nonfunctional.
+- Screenshot Chat binds only to loopback and uses a per-launch session token.
+- The WebView child does not receive that token through command-line arguments.
+- Local WebView API polling bypasses environment/system HTTP proxies.
+- Cross-origin local API requests are rejected.
+- Plugin subprocesses do not inherit ambient provider/session credentials by
+  default.
+- Secret scanning and release asset/license audits are part of CI.
 
-## Development and testing
+The current WebView bootstrap still uses a token-bearing local query URL for the
+initial page/media path. This is accepted technical debt for the source alpha,
+not a claim of final browser-session architecture.
 
-Install development dependencies and run the automated suite:
+See `SECURITY.md`.
+
+## Licensing and assets
+
+Eligible source code is licensed under the MIT License. MIT permits commercial
+reuse and proprietary derivatives subject to its notice requirements.
+
+SnapArc/HCU Lab names and branding are governed separately by
+`TRADEMARKS.md`. Product UI assets under `src/animate/` and `src/icons/`
+are governed by `ASSET_POLICY.md`; they are not automatically relicensed by
+the code license. User screenshots, recordings and runtime media must never be
+committed.
+
+Third-party dependency notices are recorded in `THIRD_PARTY_NOTICES.md`.
+The source-only alpha does not redistribute the experimental PyInstaller build.
+
+## Development and verification
 
 ```powershell
 uv sync --locked --python (py -3.12 -c 'import sys; print(sys.executable)') --group dev
+uv run python scripts/release_asset_audit.py
+uv run python scripts/release_license_audit.py
+node scripts/test_markdown_url_security.cjs
+uv run python -m src.release_smoke
 uv run python -m pytest -q tests
+uv build --offline
 ```
 
-Test counts and skips depend on the environment. Inspect pytest output rather than relying on a fixed count. Desktop/WebView2 checks and live-provider tests have additional prerequisites; an offline test pass does not establish either.
+Test counts depend on the revision and environment. Provider-dependent live
+acceptance requires separate authorization and bounded request budgets; see
+`docs/release-acceptance.md`.
 
-See [release acceptance gates](docs/release-acceptance.md) before running tests that send real requests. Live tests require explicit approval and bounded request budgets.
+## Windows packaging
 
-Build the Python package with the declared Hatchling backend:
-
-```powershell
-uv build
-```
-
-A successful package build does not by itself establish a standalone Windows distribution.
+`SnapArc.spec` and `scripts/build_windows.ps1` produce an experimental
+PyInstaller `onedir` build for engineering validation. It is **not** part of
+v0.0.1 source-alpha publication. Binary redistribution has separate LGPL,
+PDFium, clean-machine, signing and installer gates.
 
 ## Repository layout
 
 | Path | Purpose |
 | --- | --- |
 | `main.py` | Desktop application entry point |
-| `src/` | Application, UI, provider, and service code |
-| `plugins/` | Plugin implementations |
-| `tests/` | Automated tests and explicit live acceptance gates |
-| `scripts/` | Setup, migration, benchmarking, and diagnostic utilities |
-| `sample/` | Example configuration files |
-| `docs/` | Maintained project documentation |
+| `src/` | Application, UI, provider and service code |
+| `plugins/` | Bundled trusted plugin implementations |
+| `tests/` | Automated and explicitly gated live tests |
+| `scripts/` | Release checks, diagnostics and build helpers |
+| `sample/` | Non-secret example configuration |
+| `docs/` | Release, ownership and acceptance documentation |
 
-## Privacy and contribution guidelines
+## Release governance
 
-- Keep credentials, personal configuration, chat history, screenshots, recordings, and runtime state out of commits.
-- Install dependencies from manifests and lockfiles; do not vendor virtual environments or `node_modules`.
-- Keep agent transcripts, temporary plans, generated build outputs, and source ZIP bundles out of pull requests.
-- Use focused changes and report the exact checks performed. Distinguish unit-test results from real Windows desktop and live-provider verification.
-- Do not include raw provider responses, private endpoints, or user data in issue reports or test logs.
-
-## Free-to-use direction and privacy
-
-SnapArc is planned as a free public application. The legal license and redistribution terms must be selected and audited before any public source release. No paid features or account are required by this pre-alpha source. Remote AI capabilities are optional and require explicitly configured credentials; sending content to an AI provider is subject to that provider's policies. Do not put secrets, screenshots, recordings, history, or runtime configuration into the repository. Review [release gates](docs/release-acceptance.md) and [security policy](SECURITY.md).
+No GitHub remote, public push or public release should occur until the
+maintainer reviews `docs/PUBLIC-ALPHA-APPROVAL.md` and explicitly approves
+the final commit/hash package.

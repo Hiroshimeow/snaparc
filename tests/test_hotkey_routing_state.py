@@ -109,14 +109,14 @@ class HotkeyRoutingStateTests(unittest.TestCase):
         self.assertIs(seen["icon"], app.image_pause)
         self.assertIs(app.animator.current_icon, app.image_pause)
         self.assertIs(app.icon.icon, app.image_pause)
-        self.assertEqual(app.icon.title, "Tool (Paused)")
+        self.assertEqual(app.icon.title, "SnapArc (Paused)")
 
         app.toggle_pause()
 
         self.assertEqual(app.run_flag, 0)
         self.assertIs(app.animator.current_icon, app.current_icon)
         self.assertIs(app.icon.icon, app.current_icon)
-        self.assertEqual(app.icon.title, "Tool")
+        self.assertEqual(app.icon.title, "SnapArc")
 
     def test_set_prompt_type_while_paused_keeps_pause_icon_on_animator(self):
         app = self.make_app()

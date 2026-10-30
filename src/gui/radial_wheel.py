@@ -459,7 +459,7 @@ class RadialWheelOverlay:
             c.create_text(
                 cx,
                 cy - 18,
-                text="◈ RADIAL v2.4 ◈",
+                text="SNAPARC",
                 fill=self.style.subtext_color,
                 font=("Segoe UI", 8, "bold"),
             )

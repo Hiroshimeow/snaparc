@@ -1,14 +1,32 @@
-﻿# SnapArc redistribution and ownership checkpoint
+# SnapArc ownership and publication checkpoint
 
-The MIT LICENSE is prepared for the HCU Lab free-source release candidate.
-Do not publish until the operator confirms authority to license **all** code,
-design assets, fonts, plugin samples, and source contributions. Some code was
-migrated from an older private repository; a new Git history does not establish
-new intellectual-property ownership.
+The repository is prepared for a **source-only public alpha** under MIT for
+eligible source code. The clean Git history does not itself prove intellectual
+property ownership.
 
-Verify license terms for distributed Python packages and external runtimes
-(Python, Tcl/Tk, WebView2, Pi), and retain their required notices. This
-checkpoint is explicitly **not an assertion that rights have been cleared**.
+## Required final maintainer attestation
 
-Source-only alpha does not require Authenticode; standalone Windows installer
-distribution has a separate packaging/signing and smoke-test gate.
+Immediately before GitHub publication, the maintainer must confirm that:
+
+- the source code being published may be licensed under MIT;
+- the retained UI assets in `src/animate/` and `src/icons/` may be
+  published under the asset policy;
+- no employer, client, school, collaborator or third party holds conflicting
+  rights that prevent this publication, or any necessary permission has been
+  obtained;
+- SnapArc/HCU Lab branding may be used for the public project.
+
+If there is uncertainty about work created under an employment/IP-assignment
+agreement or with third-party/client materials, obtain external written
+clearance before the public push rather than guessing.
+
+## Evidence already prepared
+
+- Independent clean SnapArc Git history.
+- Secret-scanning release gate.
+- Product asset audit and legacy asset provenance checkpoint.
+- Direct dependency license inventory.
+- Separate MIT code license, asset policy and brand policy.
+- Single final approval package in `docs/PUBLIC-ALPHA-APPROVAL.md`.
+
+This document does not assert ownership on behalf of the maintainer.

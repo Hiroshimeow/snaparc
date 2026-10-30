@@ -323,7 +323,7 @@ class ScreenshotApp:
             MenuItem("Restart App", self.reset_app),
             MenuItem("Exit", self.request_exit),
         )
-        self.icon = Icon("SS", self.current_icon, "Tool", menu)
+        self.icon = Icon("SnapArc", self.current_icon, "SnapArc", menu)
 
         # --- Components ---
         self.input_handler = InputHandler(
@@ -1394,13 +1394,13 @@ class ScreenshotApp:
             self.animator.stop_animation()
             if self.icon:
                 self.icon.icon = self.image_pause
-                self.icon.title = "Tool (Paused)"
+                self.icon.title = "SnapArc (Paused)"
             print("App Paused.")
         else:
             self.animator.current_icon = self.current_icon
             if self.icon:
                 self.icon.icon = self.current_icon
-                self.icon.title = "Tool"
+                self.icon.title = "SnapArc"
             self.input_handler.start_mouse_listener()
             print("App Resumed.")
 
@@ -1421,7 +1421,7 @@ class ScreenshotApp:
     def show_help_window(self, icon=None, item=None):
         """Displays a help window with dynamically generated hotkey info and settings."""
         help_win = tk.Toplevel(self.root)
-        help_win.title("Help & Settings (v1.1)")
+        help_win.title("SnapArc Help & Settings")
         help_win.geometry("540x440")
         help_win.attributes("-topmost", True)
 
@@ -1430,7 +1430,7 @@ class ScreenshotApp:
         )
         text_widget.pack(fill=tk.BOTH, expand=True)
 
-        help_text = "=== SCREENSHOT & TRANSLATE CHATBOT v1.1 ===\n\n"
+        help_text = "=== SNAPARC v0.0.1 ===\n\n"
         help_text += "--- Current Settings ---\n"
         help_text += f"Provider: {self.gemini.provider}\n"
         help_text += f"Model: {self.gemini.model}\n"
@@ -1819,6 +1819,10 @@ def _restart_process():
 
 
 if __name__ == "__main__":
+    if "--snaparc-release-smoke" in sys.argv:
+        sys.argv.remove("--snaparc-release-smoke")
+        from src.release_smoke import run_release_smoke
+        raise SystemExit(run_release_smoke(os.environ.get("SNAPARC_RELEASE_SMOKE_REPORT")))
     if getattr(sys, "frozen", False) and "--snaparc-webview-child" in sys.argv:
         sys.argv.remove("--snaparc-webview-child")
         from src.gui.screenshot_chat.webview_app import main as run_chat_child

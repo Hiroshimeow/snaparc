@@ -29,9 +29,24 @@ jobs:
           $python = python -c "import sys, tkinter; print(sys.executable)"
           if ($LASTEXITCODE -ne 0) { exit 1 }
           uv sync --locked --python $python --group dev
+      - name: Release asset audit
+        shell: pwsh
+        run: uv run --locked python scripts/release_asset_audit.py
+      - name: Source license audit
+        shell: pwsh
+        run: uv run --locked python scripts/release_license_audit.py
+      - name: Release brand audit
+        shell: pwsh
+        run: uv run --locked python scripts/release_brand_audit.py
       - name: Markdown URL injection regression
         shell: pwsh
         run: node scripts/test_markdown_url_security.cjs
+      - name: Windows source smoke
+        shell: pwsh
+        run: uv run --locked python -m src.release_smoke
       - name: Offline tests
         shell: pwsh
         run: uv run --locked python -m pytest -q tests
+      - name: Source package build
+        shell: pwsh
+        run: uv build --offline

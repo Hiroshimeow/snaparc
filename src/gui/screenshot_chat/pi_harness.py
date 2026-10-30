@@ -252,7 +252,7 @@ def export_session_html(session: Any) -> str:
     preserving all Markdown text, `<thinking>` blocks, full tool call arguments & outputs,
     and `<task-notification>` subagent cards.
     """
-    title = html.escape(str(getattr(session, "title", None) or "Pi Sidecar Chat Transcript"))
+    title = html.escape(str(getattr(session, "title", None) or "SnapArc Chat Transcript"))
     model_name = html.escape(str(getattr(session, "model_name", None) or ""))
     exported_at = time.strftime("%Y-%m-%d %H:%M:%S")
 

@@ -1,6 +1,6 @@
 """Native `pi --mode rpc` & OpenAI-Completions Agentic Bridge (`src/agents/pi_rpc_bridge.py`) — v2.4.
 
-Provides the primary Pi Sidecar Agent runtime for Screens-Trans-Chatbot v2.4:
+Provides the primary Pi Sidecar Agent runtime for SnapArc v0.0.1:
 1. Powered directly by the single unified OpenAI-compatible Chat Completions API
    (`openai-completions` in `config.yaml`, e.g. `cliproxy/gpt-5.4`, `cliproxy/claude-sonnet-4-6`,
    `cliproxy/gemini-2.5-pro`) with full multi-step tool calling (`read`, `write`, `edit`,

@@ -80,7 +80,7 @@ class ScreenshotChatWindow(customtkinter.CTkToplevel):
     def _setup_window(self):
         self.geometry("680x820")
         self.minsize(500, 580)
-        self.title("Pi Sidecar Studio v2.4")
+        self.title("SnapArc Chat")
         self.overrideredirect(True)
         self.attributes("-topmost", True)
         self.configure(fg_color=COLORS["bg"])
@@ -91,7 +91,7 @@ class ScreenshotChatWindow(customtkinter.CTkToplevel):
         self._is_expanded = False
         self._saved_geom = "680x820"
 
-        # 1. Top Header Bar (Pi Sidecar Studio v2.4)
+        # 1. Top header bar
         self.header = customtkinter.CTkFrame(
             self,
             fg_color="#0f172a",
@@ -536,7 +536,7 @@ class ScreenshotChatWindow(customtkinter.CTkToplevel):
             self._session_label(item): item.id for item in sessions
         }
         stitle = (active.title or "New Chat").strip()
-        self.title_label.configure(text="🤖 Pi Sidecar")
+        self.title_label.configure(text="SnapArc Chat")
         self.chats_button.configure(text=f"💬 {stitle[:16]} ▾")
         self.model_button.configure(text=self._short_model(active.model_name))
         self._refresh_mode_buttons(active.mode or "chat")
@@ -588,7 +588,7 @@ class ScreenshotChatWindow(customtkinter.CTkToplevel):
 
         customtkinter.CTkLabel(
             card,
-            text="🤖 Pi Sidecar Workspace (v2.4)",
+            text="SnapArc Chat & Tools",
             text_color="#f8fafc",
             font=("Segoe UI", 14, "bold"),
             anchor="w",

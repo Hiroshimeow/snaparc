@@ -1,12 +1,12 @@
 """
-Radial Plugin Service (v2.4)
+SnapArc Radial Plugin Service
 ============================
 Loads, hot-reloads, validates, and executes dynamic radial wheel plugins
 configured via `plugins.yaml` or `config.yaml` ("radial_plugins"), plus automatic
 discovery of standalone scripts in `plugins/*.py` (via `PLUGIN_META_JSON` AND
 automatic AST inspection of `argparse` `add_argument("--flag")` definitions).
 
-Key v2.4 Capabilities:
+Key capabilities:
 1. Dynamic Parameters (`RadialParamSpec`):
    - If a plugin has 0 params (`not spec.params`), it runs immediately on mouse release.
    - If a plugin has N params (`len(spec.params) > 0`), the UI opens `RadialParamPopup`

@@ -150,7 +150,7 @@ class SlashCommandPopup(customtkinter.CTkFrame):
 
 
 class ScreenshotChatComposer(customtkinter.CTkFrame):
-    """Modern Composer for Pi Sidecar Studio v2.4."""
+    """Modern composer for SnapArc Chat."""
 
     PLACEHOLDER_TEXT = "Ask Pi Sidecar, paste images (Ctrl+V), drop files, run !ls, or type / for commands..."
 

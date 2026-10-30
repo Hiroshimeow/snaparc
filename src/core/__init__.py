@@ -1,4 +1,4 @@
-"""Core Architecture Package for Screens-Trans-Chatbot v1.1."""
+"""Core architecture package for SnapArc."""
 
 from src.core.action_context import ActionContextBuilder, ActionTimeContext, ForegroundWindowInfo
 from src.core.dpi_capture import (

@@ -26,7 +26,7 @@ def _default_key_state_checker(key_name):
 
 class InputHandler:
     """
-    Mouse & modifier input handler for Screens-Trans-Chatbot v2.4:
+    Mouse & modifier input handler for SnapArc:
     1. Right-mouse (or Left-mouse) drag (`>= 0.2s`, `dist > 50px`):
        - Default / Shift+Snap / Ctrl+Snap (Image Popup) / Alt+Snap (Text/File Popup)
     2. Alt + Hold/Click (`>= 0.2s` even without dragging > 50px):

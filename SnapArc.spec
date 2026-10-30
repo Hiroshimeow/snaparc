@@ -1,7 +1,7 @@
 # -*- mode: python ; coding: utf-8 -*-
 from PyInstaller.utils.hooks import collect_data_files
 
-datas = [('src/gui/screenshot_chat/web_assets', 'src/gui/screenshot_chat/web_assets'), ('plugins', 'plugins'), ('plugins.yaml', '.')]
+datas = [('src/gui/screenshot_chat/web_assets', 'src/gui/screenshot_chat/web_assets'), ('src/animate', 'src/animate'), ('src/icons', 'src/icons'), ('plugins', 'plugins'), ('plugins.yaml', '.'), ('LICENSE', '.'), ('THIRD_PARTY_NOTICES.md', '.'), ('TRADEMARKS.md', '.'), ('ASSET_POLICY.md', '.')]
 datas += collect_data_files('customtkinter')
 datas += collect_data_files('pywebview')
 datas += collect_data_files('pystray')

@@ -1,8 +1,34 @@
-﻿# SnapArc 0.0.1
+# Changelog
 
-First standalone source snapshot for the SnapArc by HCU Lab identity.
+## 0.0.1 - public-source alpha candidate
 
-- Fresh Git lineage; no historical commits or tags are transferred.
-- Package/display naming reset to SnapArc.
-- Original v2.4 functionality remains in place pending independent audit and acceptance.
-- Not approved for public distribution; security, license, build and UI tests remain release blockers.
+First standalone SnapArc source release candidate under the HCU Lab product
+identity.
+
+### Changed
+
+- Reset product/package identity to SnapArc 0.0.1 with an independent Git
+  history.
+- Repositioned chat as an optional workflow inside a desktop productivity tool.
+- Added MIT code license, separate brand/asset policies and third-party notices.
+- Added Windows CI, release asset/license audits and deterministic source smoke.
+- Added experimental PyInstaller `onedir` packaging for engineering validation.
+
+### Security and privacy
+
+- Removed session token transport from child-process command-line arguments.
+- Restricted Screenshot Chat server binding to loopback and reject cross-origin
+  local API requests.
+- Disabled HTTP proxy use for the WebView's local authenticated API polling.
+- Restored WebView2 renderer integrity and SmartScreen protections.
+- Default-deny remote AI upload unless `privacy.allow_cloud_upload` is exactly
+  boolean `true`; applies to LLMService and native Pi-RPC completion dispatch.
+- Kept loopback AI endpoints usable without cloud-upload consent.
+- Restricted plugin subprocess environment inheritance and made unbundled
+  plugin discovery explicit opt-in.
+- Added malicious Markdown URL regression checks and release secret scanning.
+
+### Verification
+
+The final release report records exact test counts, smoke results, hashes and
+review status. This candidate is not a signed Windows installer.
