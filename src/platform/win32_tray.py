@@ -12,6 +12,16 @@ import threading
 from PIL import Image
 
 
+_LRESULT = ctypes.c_ssize_t
+_WNDPROC = ctypes.WINFUNCTYPE(
+    _LRESULT,
+    wintypes.HWND,
+    wintypes.UINT,
+    wintypes.WPARAM,
+    wintypes.LPARAM,
+)
+
+
 class MenuItem:
     def __init__(
         self,
@@ -112,6 +122,7 @@ class Icon:
         self._class_name = f"SnapArcTray_{os.getpid()}_{id(self)}"
         self._started = threading.Event()
         self._stopped = threading.Event()
+        self._start_error: BaseException | None = None
         self._lock = threading.RLock()
         self._icon_cache: dict[str, tuple[str, int]] = {}
         self._temp_dir = Path(tempfile.mkdtemp(prefix="snaparc_tray_"))
@@ -145,10 +156,17 @@ class Icon:
     def run_detached(self):
         if self._thread and self._thread.is_alive():
             return
-        self._thread = threading.Thread(target=self._run, name="SnapArcTray", daemon=True)
+        self._started.clear()
+        self._stopped.clear()
+        self._start_error = None
+        self._thread = threading.Thread(target=self._thread_main, name="SnapArcTray", daemon=True)
         self._thread.start()
         if not self._started.wait(timeout=3):
             raise RuntimeError("Timed out starting native tray")
+        if self._start_error is not None:
+            raise RuntimeError(f"Failed starting native tray: {self._start_error}") from self._start_error
+        if not self._thread.is_alive():
+            raise RuntimeError("Native tray thread exited during startup")
 
     def stop(self):
         hwnd = self._hwnd
@@ -157,18 +175,120 @@ class Icon:
         if self._thread and self._thread.is_alive() and threading.current_thread() is not self._thread:
             self._thread.join(timeout=3)
 
+    def _thread_main(self):
+        try:
+            self._run()
+        except BaseException as exc:
+            self._start_error = exc
+            self._started.set()
+            self._stopped.set()
+
     def _run(self):
         user32 = ctypes.windll.user32
         kernel32 = ctypes.windll.kernel32
         shell32 = ctypes.windll.shell32
 
-        wndproc_type = ctypes.WINFUNCTYPE(
-            wintypes.LRESULT,
+        lresult_t = _LRESULT
+        wndproc_type = _WNDPROC
+
+        kernel32.GetModuleHandleW.argtypes = [wintypes.LPCWSTR]
+        kernel32.GetModuleHandleW.restype = wintypes.HINSTANCE
+        kernel32.GetCurrentThreadId.argtypes = []
+        kernel32.GetCurrentThreadId.restype = wintypes.DWORD
+
+        user32.DefWindowProcW.argtypes = [
             wintypes.HWND,
             wintypes.UINT,
             wintypes.WPARAM,
             wintypes.LPARAM,
-        )
+        ]
+        user32.DefWindowProcW.restype = lresult_t
+        user32.CreateWindowExW.argtypes = [
+            wintypes.DWORD,
+            wintypes.LPCWSTR,
+            wintypes.LPCWSTR,
+            wintypes.DWORD,
+            ctypes.c_int,
+            ctypes.c_int,
+            ctypes.c_int,
+            ctypes.c_int,
+            wintypes.HWND,
+            wintypes.HMENU,
+            wintypes.HINSTANCE,
+            ctypes.c_void_p,
+        ]
+        user32.CreateWindowExW.restype = wintypes.HWND
+        user32.DestroyWindow.argtypes = [wintypes.HWND]
+        user32.DestroyWindow.restype = wintypes.BOOL
+        user32.PostMessageW.argtypes = [
+            wintypes.HWND,
+            wintypes.UINT,
+            wintypes.WPARAM,
+            wintypes.LPARAM,
+        ]
+        user32.PostMessageW.restype = wintypes.BOOL
+        user32.PostQuitMessage.argtypes = [ctypes.c_int]
+        user32.PostQuitMessage.restype = None
+        user32.GetMessageW.argtypes = [
+            ctypes.POINTER(wintypes.MSG),
+            wintypes.HWND,
+            wintypes.UINT,
+            wintypes.UINT,
+        ]
+        user32.GetMessageW.restype = ctypes.c_int
+        user32.TranslateMessage.argtypes = [ctypes.POINTER(wintypes.MSG)]
+        user32.TranslateMessage.restype = wintypes.BOOL
+        user32.DispatchMessageW.argtypes = [ctypes.POINTER(wintypes.MSG)]
+        user32.DispatchMessageW.restype = lresult_t
+        user32.UnregisterClassW.argtypes = [wintypes.LPCWSTR, wintypes.HINSTANCE]
+        user32.UnregisterClassW.restype = wintypes.BOOL
+        user32.LoadImageW.argtypes = [
+            wintypes.HINSTANCE,
+            wintypes.LPCWSTR,
+            wintypes.UINT,
+            ctypes.c_int,
+            ctypes.c_int,
+            wintypes.UINT,
+        ]
+        user32.LoadImageW.restype = wintypes.HANDLE
+        user32.DestroyIcon.argtypes = [wintypes.HICON]
+        user32.DestroyIcon.restype = wintypes.BOOL
+        user32.CreatePopupMenu.argtypes = []
+        user32.CreatePopupMenu.restype = wintypes.HMENU
+        user32.AppendMenuW.argtypes = [
+            wintypes.HMENU,
+            wintypes.UINT,
+            ctypes.c_size_t,
+            wintypes.LPCWSTR,
+        ]
+        user32.AppendMenuW.restype = wintypes.BOOL
+        user32.SetMenuDefaultItem.argtypes = [
+            wintypes.HMENU,
+            wintypes.UINT,
+            wintypes.BOOL,
+        ]
+        user32.SetMenuDefaultItem.restype = wintypes.BOOL
+        user32.GetCursorPos.argtypes = [ctypes.POINTER(wintypes.POINT)]
+        user32.GetCursorPos.restype = wintypes.BOOL
+        user32.SetForegroundWindow.argtypes = [wintypes.HWND]
+        user32.SetForegroundWindow.restype = wintypes.BOOL
+        user32.TrackPopupMenu.argtypes = [
+            wintypes.HMENU,
+            wintypes.UINT,
+            ctypes.c_int,
+            ctypes.c_int,
+            ctypes.c_int,
+            wintypes.HWND,
+            ctypes.c_void_p,
+        ]
+        user32.TrackPopupMenu.restype = wintypes.UINT
+        user32.DestroyMenu.argtypes = [wintypes.HMENU]
+        user32.DestroyMenu.restype = wintypes.BOOL
+        shell32.Shell_NotifyIconW.argtypes = [
+            wintypes.DWORD,
+            ctypes.POINTER(self.NOTIFYICONDATAW),
+        ]
+        shell32.Shell_NotifyIconW.restype = wintypes.BOOL
 
         class WNDCLASSW(ctypes.Structure):
             _fields_ = [
@@ -183,6 +303,9 @@ class Icon:
                 ("lpszMenuName", wintypes.LPCWSTR),
                 ("lpszClassName", wintypes.LPCWSTR),
             ]
+
+        user32.RegisterClassW.argtypes = [ctypes.POINTER(WNDCLASSW)]
+        user32.RegisterClassW.restype = wintypes.ATOM
 
         @wndproc_type
         def wndproc(hwnd, msg, wparam, lparam):

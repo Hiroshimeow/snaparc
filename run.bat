@@ -1,10 +1,8 @@
 @echo off
 chcp 65001 >nul 2>nul
 setlocal
-set "PATH=%SystemRoot%\System32;%SystemRoot%\SysWOW64;%SystemRoot%;%PATH%"
-pushd "%~dp0" && (
-  echo PATH fixed ^(System32 first^). Running...
-  "C:\Users\admin\miniconda3\Scripts\conda.exe" run -n ana11 --no-capture-output --live-stream python main.py %*
-) & popd
-endlocal
+call "%~dp0main.bat" %*
+set "RC=%ERRORLEVEL%"
+if not "%RC%"=="0" echo SnapArc exited with code %RC%.
 pause
+exit /b %RC%

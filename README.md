@@ -1,4 +1,4 @@
-# SnapArc v0.0.1 - by HCU Lab
+# SnapArc v0.0.2 - by HCU Lab
 
 SnapArc is a free Windows desktop productivity toolkit for screenshot workflows,
 translation, audio, quick actions, and configurable local plugins. Chat is an
@@ -40,6 +40,8 @@ uv run python main.py
 ```
 
 `config.yaml` and runtime state under `data/` are local and Git-ignored.
+
+For normal Windows launches, `run.bat` delegates to the supported `main.bat` / `main.ps1` uv launcher. It does not depend on a machine-specific Conda environment.
 
 ## Model/provider protocol
 
@@ -137,7 +139,7 @@ acceptance requires separate authorization and bounded request budgets; see
 
 `SnapArc.spec` and `scripts/build_windows.ps1` produce an experimental
 PyInstaller `onedir` build for engineering validation. It is **not** part of
-v0.0.1 source-alpha publication. Binary redistribution has separate full
+v0.0.2 source-alpha publication. Binary redistribution has separate full
 transitive-license, clean-machine, signing and installer gates.
 
 ## Repository layout

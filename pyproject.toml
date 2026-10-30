@@ -1,7 +1,7 @@
 
 [project]
 name = "snaparc"
-version = "0.0.1"
+version = "0.0.2"
 description = "SnapArc: free Windows desktop productivity tools with optional AI workflows and configurable plugins."
 readme = "README.md"
 license = "MIT"

@@ -97,7 +97,7 @@ def run_release_smoke(report_path: str | None = None) -> int:
     root = _runtime_root()
     report = {
         "product": "SnapArc",
-        "version": "0.0.1",
+        "version": "0.0.2",
         "frozen": bool(getattr(sys, "frozen", False)),
         "python": sys.version.split()[0],
         "runtime_root": str(root),

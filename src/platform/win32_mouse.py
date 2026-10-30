@@ -1,9 +1,25 @@
 from __future__ import annotations
 
 import ctypes
+from ctypes import wintypes
 from enum import Enum
 import sys
 import threading
+
+
+_LRESULT = ctypes.c_ssize_t
+
+
+def _configure_hook_chain_api(user32):
+    user32.CallNextHookEx.argtypes = [
+        wintypes.HHOOK,
+        ctypes.c_int,
+        wintypes.WPARAM,
+        wintypes.LPARAM,
+    ]
+    user32.CallNextHookEx.restype = _LRESULT
+    user32.UnhookWindowsHookEx.argtypes = [wintypes.HHOOK]
+    user32.UnhookWindowsHookEx.restype = wintypes.BOOL
 
 
 class Button(Enum):
@@ -33,15 +49,21 @@ class Listener:
         self._hook = None
         self._proc = None
         self._started = threading.Event()
+        self._start_error: BaseException | None = None
 
     def start(self):
         if self.is_alive():
             return self
         if sys.platform != "win32":
             raise RuntimeError("Win32 mouse listener is only available on Windows")
-        self._thread = threading.Thread(target=self._run, name="SnapArcMouseHook", daemon=True)
+        self._started.clear()
+        self._start_error = None
+        self._thread = threading.Thread(target=self._thread_main, name="SnapArcMouseHook", daemon=True)
         self._thread.start()
-        self._started.wait(timeout=2)
+        if not self._started.wait(timeout=2):
+            raise RuntimeError("Timed out starting native mouse hook")
+        if self._start_error is not None:
+            raise RuntimeError(f"Failed starting native mouse hook: {self._start_error}") from self._start_error
         return self
 
     def is_alive(self):
@@ -54,9 +76,14 @@ class Listener:
             ctypes.windll.user32.PostThreadMessageW(self._thread_id, self.WM_QUIT, 0, 0)
         self._thread.join(timeout=2)
 
-    def _run(self):
-        from ctypes import wintypes
+    def _thread_main(self):
+        try:
+            self._run()
+        except BaseException as exc:
+            self._start_error = exc
+            self._started.set()
 
+    def _run(self):
         class POINT(ctypes.Structure):
             _fields_ = [("x", wintypes.LONG), ("y", wintypes.LONG)]
 
@@ -74,11 +101,12 @@ class Listener:
         self._thread_id = int(kernel32.GetCurrentThreadId())
 
         low_level_proc = ctypes.WINFUNCTYPE(
-            ctypes.c_longlong,
+            _LRESULT,
             ctypes.c_int,
             wintypes.WPARAM,
             wintypes.LPARAM,
         )
+        _configure_hook_chain_api(user32)
 
         button_messages = {
             self.WM_LBUTTONDOWN: (Button.left, True),

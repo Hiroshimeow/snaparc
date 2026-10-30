@@ -1,6 +1,6 @@
 """Native `pi --mode rpc` & OpenAI-Completions Agentic Bridge (`src/agents/pi_rpc_bridge.py`) — v2.4.
 
-Provides the primary Pi Sidecar Agent runtime for SnapArc v0.0.1:
+Provides the primary Pi Sidecar Agent runtime for SnapArc v0.0.2:
 1. Powered directly by the single configured OpenAI-compatible Chat Completions API
    (`openai-completions` in `config.yaml`) with full multi-step tool calling (`read`, `write`, `edit`,
    `bash`, `grep`, `find`, `ls`), image attachments, streaming thinking/text deltas,

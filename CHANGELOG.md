@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.0.2 - Win64 startup patch
+
+### Fixed
+
+- Corrected the Win64 `CallNextHookEx` ctypes signature so pointer-sized
+  `LPARAM` values are not truncated to 32-bit integers.
+- Corrected native tray callback/handle ABI types; `LRESULT` is explicitly
+  pointer-sized on Python 3.12/64-bit Windows.
+- Native mouse/tray startup failures are surfaced instead of degrading into an
+  opaque startup timeout.
+- `run.bat` now delegates to the supported `main.bat` / `main.ps1` uv
+  launcher instead of a machine-specific Conda environment.
+- Added Windows ABI regression coverage for hook parameters, tray
+  startup/shutdown, startup error propagation and launcher policy.
+
 ## 0.0.1 - public-source alpha candidate
 
 First standalone SnapArc source release candidate under the HCU Lab product

@@ -2,7 +2,7 @@
 
 SnapArc includes `SnapArc.spec` and `scripts/build_windows.ps1` so the
 desktop application can be exercised as a frozen Windows `onedir` build.
-This is engineering validation only; **the v0.0.1 public release is source-only**.
+This is engineering validation only; **the v0.0.2 public release is source-only**.
 
 ## Current local evidence
 
@@ -20,7 +20,7 @@ covered separately by tests and by the `--snaparc-webview-child` entry path;
 interactive WebView-mode acceptance is still required before any binary
 publication.
 
-## Why the binary is not published with v0.0.1
+## Why the binary is not published with v0.0.2
 
 A future portable/binary release needs additional work:
 
@@ -32,5 +32,5 @@ A future portable/binary release needs additional work:
   Authenticode signing;
 - installer/uninstaller/update-integrity validation for a production release.
 
-Do not attach `dist/SnapArc` or an installer to the v0.0.1 GitHub source
+Do not attach `dist/SnapArc` or an installer to the v0.0.2 GitHub source
 release.

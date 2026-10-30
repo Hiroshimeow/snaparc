@@ -26,8 +26,8 @@ def main() -> int:
         for token in BANNED:
             if token.lower() in text.lower():
                 failures.append(f"{path}: legacy user-facing identity: {token}")
-    if "# SnapArc v0.0.1" not in Path("README.md").read_text(encoding="utf-8"):
-        failures.append("README missing SnapArc v0.0.1 identity")
+    if "# SnapArc v0.0.2" not in Path("README.md").read_text(encoding="utf-8"):
+        failures.append("README missing SnapArc v0.0.2 identity")
     if failures:
         for failure in failures:
             print(f"ERROR: {failure}")

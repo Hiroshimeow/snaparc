@@ -5,7 +5,7 @@ identity.
 
 ## Status
 
-Version 0.0.1 is a **source-only public-alpha candidate**. It is not a
+Version 0.0.2 is a **source-only public-alpha candidate**. It is not a
 production-ready, signed Windows binary or installer. Publication still
 requires the maintainer's final rights/asset attestation and explicit GitHub
 approval.
@@ -63,4 +63,4 @@ tests, a complete transitive dependency/license redistribution audit, artifact
 hashes, and later signing/install/uninstall/update-integrity validation.
 
 Do not label the experimental PyInstaller build production-ready or attach it
-to the v0.0.1 source release.
+to the v0.0.2 source release.

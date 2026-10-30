@@ -4,7 +4,7 @@ $root=Split-Path -Parent $PSScriptRoot
 Set-Location $root
 
 $manifest=Get-Content pyproject.toml -Raw
-if($manifest -notmatch 'name = "snaparc"' -or $manifest -notmatch 'version = "0.0.1"'){
+if($manifest -notmatch 'name = "snaparc"' -or $manifest -notmatch 'version = "0.0.2"'){
     throw 'Unexpected SnapArc release identity'
 }
 if($manifest -notmatch 'license = "MIT"'){
@@ -42,4 +42,4 @@ if($LASTEXITCODE -ne 0){throw 'Source package build failed'}
 
 Write-Output 'SnapArc source-alpha automated release gate passed.'
 Write-Output 'Still separate: final rights/asset attestation, final committed-history secret scan, GitHub approval.'
-Write-Output 'Portable/installer publishing remains out of scope for v0.0.1 source alpha.'
+Write-Output 'Portable/installer publishing remains out of scope for v0.0.2 source alpha.'

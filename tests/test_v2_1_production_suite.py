@@ -51,7 +51,7 @@ class STCV21ProductionTests(unittest.TestCase):
     def test_01_pyproject_and_uv_lock_support_python_314_and_flat_layout(self) -> None:
         pyproject_path = REPO_ROOT / "pyproject.toml"
         data = tomllib.loads(pyproject_path.read_text(encoding="utf-8"))
-        self.assertIn(data["project"]["version"], ("0.0.1",))
+        self.assertIn(data["project"]["version"], ("0.0.2",))
         self.assertEqual(data["project"]["requires-python"], ">=3.10")
         self.assertFalse(data.get("tool", {}).get("uv", {}).get("package", True))
         self.assertEqual(

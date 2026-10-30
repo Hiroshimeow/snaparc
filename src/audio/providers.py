@@ -98,7 +98,7 @@ class KorvaTTSProvider:
             headers={
                 "Authorization": f"Bearer {self.api_key}",
                 "Content-Type": "application/json; charset=utf-8",
-                "User-Agent": "SnapArc/0.0.1",
+                "User-Agent": "SnapArc/0.0.2",
             },
         )
         with urllib.request.urlopen(request, timeout=self.timeout_seconds) as response:

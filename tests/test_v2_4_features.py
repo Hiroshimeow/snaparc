@@ -203,7 +203,7 @@ class TestV24RadialWheelAndPlugins(unittest.TestCase):
 class TestV24PiSidecarPrimaryAndSingleOpenAIPath(unittest.TestCase):
     def test_01_zero_google_genai_or_direct_gemini_providers_remain(self) -> None:
         pyproject_data = tomllib.loads((REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
-        self.assertEqual(pyproject_data["project"]["version"], "0.0.1")
+        self.assertEqual(pyproject_data["project"]["version"], "0.0.2")
         deps = " ".join(pyproject_data["project"].get("dependencies", []))
         self.assertNotIn("google-genai", deps)
 

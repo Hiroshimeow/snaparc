@@ -56,5 +56,5 @@ failed request makes exactly one HTTP attempt.
 
 Passing live tests proves only the approved provider/model scenarios. It does
 not establish overall release readiness, provider privacy guarantees, or plugin
-sandboxing. The v0.0.1 source alpha does not require live-provider acceptance
+sandboxing. The v0.0.2 source alpha does not require live-provider acceptance
 unless such provider-specific claims are made.

@@ -1,19 +1,19 @@
-# SnapArc v0.0.1 - release readiness
+# SnapArc v0.0.2 - release readiness
 
 ## Release identity
 
 - Product: SnapArc by HCU Lab
-- Version: 0.0.1
+- Version: 0.0.2
 - Intended publication: source-only public alpha
 - Code license: MIT, with branding and product assets handled separately
-- Binary/installer publication: out of scope for v0.0.1
+- Binary/installer publication: out of scope for v0.0.2
 - GitHub publication: requires final maintainer approval
 
 ## Automated source-alpha gate
 
 The final release gate on the current candidate working tree reported:
 
-- 616 Python tests passed, 11 skipped, 9 subtests passed.
+- 621 Python tests passed, 11 skipped, 9 subtests passed.
 - Release asset audit passed: 172 retained product image assets; no tracked
   screenshot/runtime media.
 - Direct dependency/license-source audit passed: third-party dependencies are
@@ -63,7 +63,7 @@ Final GitHub approval must include the maintainer attestation in
 ## Experimental Windows portable evidence
 
 The PyInstaller `onedir` candidate is engineering evidence only and is not a
-v0.0.1 release artifact.
+v0.0.2 release artifact.
 
 Current local evidence:
 
