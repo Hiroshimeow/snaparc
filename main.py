@@ -101,11 +101,11 @@ class _MonitorInfo(ctypes.Structure):
 
 def get_monitor_work_area(pointer_x, pointer_y):
     user32 = ctypes.windll.user32
-    monitor_from_point = user32.MonitorFromPoint
+    monitor_from_point = user32["MonitorFromPoint"]
     monitor_from_point.argtypes = [wintypes.POINT, wintypes.DWORD]
     monitor_from_point.restype = wintypes.HMONITOR
     monitor = monitor_from_point(wintypes.POINT(pointer_x, pointer_y), 2)
-    get_monitor_info = user32.GetMonitorInfoW
+    get_monitor_info = user32["GetMonitorInfoW"]
     get_monitor_info.argtypes = [wintypes.HMONITOR, ctypes.POINTER(_MonitorInfo)]
     get_monitor_info.restype = wintypes.BOOL
     info = _MonitorInfo(size=ctypes.sizeof(_MonitorInfo))

@@ -1,3 +1,4 @@
+import ctypes
 import queue
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
@@ -90,6 +91,20 @@ def test_held_count_stays_inside_pointer_monitor(pointer, work_area, geometry):
         app._update_tooltip_position()
 
     app.hold_count_window.geometry.assert_called_once_with(geometry)
+
+
+def test_monitor_work_area_lookup_leaves_shared_win32_signatures_unchanged():
+    shared_monitor_info = ctypes.windll.user32.GetMonitorInfoW
+    original_argtypes = shared_monitor_info.argtypes
+    original_restype = shared_monitor_info.restype
+    try:
+        left, top, right, bottom = main.get_monitor_work_area(0, 0)
+        assert right > left and bottom > top
+        assert shared_monitor_info.argtypes == original_argtypes
+        assert shared_monitor_info.restype == original_restype
+    finally:
+        shared_monitor_info.argtypes = original_argtypes
+        shared_monitor_info.restype = original_restype
 
 
 @pytest.mark.parametrize(
