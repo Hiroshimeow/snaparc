@@ -1,5 +1,6 @@
 import ctypes
 import queue
+import tkinter as tk
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
@@ -224,3 +225,33 @@ def test_quick_prompt_keeps_full_names_for_user_attachments(tmp_path):
 
     for name, call in zip(names, label.call_args_list, strict=True):
         assert name in call.kwargs["text"]
+
+
+def test_quick_prompt_can_scroll_to_remove_buttons_after_a_long_attachment(tmp_path):
+    paths = [tmp_path / f"{'long-attachment-' * 10}.png", tmp_path / "second.png"]
+    for path in paths:
+        path.touch()
+    root = tk.Tk()
+    root.geometry("580x150")
+    try:
+        popup = QuickPromptPopup(root, None, initial_files=paths)
+        popup._build_attachment_strip(root)
+        popup._render_attachment_chips()
+        root.update()
+
+        canvas = popup.chips_frame.master
+        assert canvas.winfo_width() == root.winfo_width()
+        assert canvas.xview()[1] < 1
+        scrollbar = canvas.master.winfo_children()[1]
+        assert scrollbar.winfo_ismapped()
+        canvas.xview_moveto(1)
+        root.update_idletasks()
+
+        second_chip = popup.chips_frame.winfo_children()[1]
+        remove = second_chip.winfo_children()[-1]
+        assert canvas.winfo_rootx() <= remove.winfo_rootx()
+        assert remove.winfo_rootx() + remove.winfo_width() <= canvas.winfo_rootx() + canvas.winfo_width()
+        remove.invoke()
+        assert [att.path for att in popup.attachments] == [str(paths[0])]
+    finally:
+        root.destroy()
