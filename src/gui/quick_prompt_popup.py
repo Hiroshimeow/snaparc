@@ -22,12 +22,14 @@ import ctypes
 from dataclasses import dataclass, field
 import os
 from pathlib import Path
+import re
 import sys
 import tkinter as tk
 from tkinter import filedialog, ttk
 from typing import Any, Callable, Dict, List, Optional
 
 IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif"}
+_SNAP_FILENAME = re.compile(r"screenshot_\d{8}_\d{6}_[0-9a-f]{32}\.png")
 TEXT_EXTENSIONS = {
     ".txt", ".md", ".markdown", ".py", ".js", ".ts", ".tsx", ".jsx",
     ".json", ".yaml", ".yml", ".toml", ".ini", ".cfg", ".csv", ".tsv",
@@ -319,9 +321,11 @@ class QuickPromptPopup:
         )
         drop_frame.grid(row=1, column=0, columnspan=2, sticky="ew", pady=(0, 8))
 
+        drop_controls = tk.Frame(drop_frame, bg="#222831")
+        drop_controls.pack(fill=tk.X)
         drop_hint = tk.Label(
-            drop_frame,
-            text="📥 Drag & Drop files here (.pdf, .txt, .md, .py, .json, .csv, .docx, .png) or click Browse / Ctrl+V",
+            drop_controls,
+            text="📥 Drop files here or paste with Ctrl+V",
             bg="#222831",
             fg="#9ba4b4",
             font=("Segoe UI", 9),
@@ -329,22 +333,20 @@ class QuickPromptPopup:
         drop_hint.pack(side=tk.LEFT)
 
         browse_btn = ttk.Button(
-            drop_frame,
+            drop_controls,
             text="+ Browse Files",
             command=self._browse_files,
         )
         browse_btn.pack(side=tk.RIGHT, padx=(6, 0))
 
         paste_btn = ttk.Button(
-            drop_frame,
+            drop_controls,
             text="📋 Paste Clipboard",
             command=self._paste_clipboard_into_context,
         )
         paste_btn.pack(side=tk.RIGHT)
 
-        # Chips container inside drop_frame
-        self.chips_frame = tk.Frame(container, bg="#181c22")
-        self.chips_frame.grid(row=1, column=0, columnspan=2, sticky="ew")
+        self._build_attachment_strip(drop_frame)
         self._render_attachment_chips()
 
         # Left column: Recent Prompt History
@@ -459,6 +461,28 @@ class QuickPromptPopup:
         except Exception:
             pass
 
+    def _build_attachment_strip(self, parent: tk.Misc) -> None:
+        strip = tk.Frame(parent, bg="#222831")
+        strip.pack(fill=tk.X)
+        canvas = tk.Canvas(strip, bg="#222831", width=1, height=1, highlightthickness=0)
+        canvas.pack(fill=tk.X)
+        scrollbar = ttk.Scrollbar(strip, orient=tk.HORIZONTAL, command=canvas.xview)
+        self.chips_frame = tk.Frame(canvas, bg="#222831")
+        canvas.create_window(0, 0, anchor=tk.NW, window=self.chips_frame)
+
+        def resize_strip(event):
+            canvas.configure(height=event.height, scrollregion=(0, 0, event.width, event.height))
+
+        def update_scrollbar(first, last):
+            scrollbar.set(first, last)
+            if float(first) > 0 or float(last) < 1:
+                scrollbar.pack(fill=tk.X)
+            else:
+                scrollbar.pack_forget()
+
+        self.chips_frame.bind("<Configure>", resize_strip)
+        canvas.configure(xscrollcommand=update_scrollbar)
+
     def _render_attachment_chips(self) -> None:
         if self.chips_frame is None:
             return
@@ -473,7 +497,7 @@ class QuickPromptPopup:
             icon = "🖼️" if att.kind == "image" else ("📄" if att.kind == "pdf" else "📎")
             kb = max(1, att.size_bytes // 1024)
             display_name = att.name
-            if len(display_name) > 30:
+            if _SNAP_FILENAME.fullmatch(display_name):
                 display_name = f"{display_name[:19]}…{display_name[-10:]}"
             lbl = tk.Label(
                 chip,
