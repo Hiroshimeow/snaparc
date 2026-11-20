@@ -1,6 +1,7 @@
 
 # main.py — SnapArc v0.0.1
 import ctypes
+from ctypes import wintypes
 from datetime import datetime
 from functools import partial
 import os
@@ -87,6 +88,32 @@ def get_virtual_screen_rect():
     width = user32.GetSystemMetrics(SM_CXVIRTUALSCREEN)
     height = user32.GetSystemMetrics(SM_CYVIRTUALSCREEN)
     return left, top, width, height
+
+
+class _MonitorInfo(ctypes.Structure):
+    _fields_ = [
+        ("size", wintypes.DWORD),
+        ("monitor", wintypes.RECT),
+        ("work_area", wintypes.RECT),
+        ("flags", wintypes.DWORD),
+    ]
+
+
+def get_monitor_work_area(pointer_x, pointer_y):
+    user32 = ctypes.windll.user32
+    monitor_from_point = user32.MonitorFromPoint
+    monitor_from_point.argtypes = [wintypes.POINT, wintypes.DWORD]
+    monitor_from_point.restype = wintypes.HMONITOR
+    monitor = monitor_from_point(wintypes.POINT(pointer_x, pointer_y), 2)
+    get_monitor_info = user32.GetMonitorInfoW
+    get_monitor_info.argtypes = [wintypes.HMONITOR, ctypes.POINTER(_MonitorInfo)]
+    get_monitor_info.restype = wintypes.BOOL
+    info = _MonitorInfo(size=ctypes.sizeof(_MonitorInfo))
+    if monitor and get_monitor_info(monitor, ctypes.byref(info)):
+        area = info.work_area
+        return area.left, area.top, area.right, area.bottom
+    left, top, width, height = get_virtual_screen_rect()
+    return left, top, left + width, top + height
 
 
 def capture_screen():
@@ -812,7 +839,7 @@ class ScreenshotApp:
             self.hold_count_label.config(text=str(count))
             self.hold_count_window.deiconify()
             if not self._hold_count_follow_timer:
-                self._update_tooltip_position()
+                self._hold_count_follow_timer = self.root.after_idle(self._update_tooltip_position)
 
             if self._hold_count_hide_timer:
                 self.root.after_cancel(self._hold_count_hide_timer)
@@ -823,8 +850,20 @@ class ScreenshotApp:
     def _update_tooltip_position(self):
         if self.hold_count_window:
             try:
-                x, y = self.root.winfo_pointerxy()
-                self.hold_count_window.geometry(f"+{x + 15}+{y + 15}")
+                pointer_x, pointer_y = self.root.winfo_pointerxy()
+                left, top, right, bottom = get_monitor_work_area(pointer_x, pointer_y)
+                width = self.hold_count_window.winfo_reqwidth()
+                height = self.hold_count_window.winfo_reqheight()
+                offset = 15
+                position_x = pointer_x + offset
+                position_y = pointer_y + offset
+                if position_x + width > right:
+                    position_x = pointer_x - offset - width
+                if position_y + height > bottom:
+                    position_y = pointer_y - offset - height
+                position_x = max(left, min(position_x, right - width))
+                position_y = max(top, min(position_y, bottom - height))
+                self.hold_count_window.geometry(f"+{position_x}+{position_y}")
                 self._hold_count_follow_timer = self.root.after(16, self._update_tooltip_position)
             except Exception:
                 self._hold_count_follow_timer = None

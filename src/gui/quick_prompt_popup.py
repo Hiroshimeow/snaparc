@@ -22,12 +22,14 @@ import ctypes
 from dataclasses import dataclass, field
 import os
 from pathlib import Path
+import re
 import sys
 import tkinter as tk
 from tkinter import filedialog, ttk
 from typing import Any, Callable, Dict, List, Optional
 
 IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif"}
+_SNAP_FILENAME = re.compile(r"screenshot_\d{8}_\d{6}_[0-9a-f]{32}\.png")
 TEXT_EXTENSIONS = {
     ".txt", ".md", ".markdown", ".py", ".js", ".ts", ".tsx", ".jsx",
     ".json", ".yaml", ".yml", ".toml", ".ini", ".cfg", ".csv", ".tsv",
@@ -473,7 +475,7 @@ class QuickPromptPopup:
             icon = "🖼️" if att.kind == "image" else ("📄" if att.kind == "pdf" else "📎")
             kb = max(1, att.size_bytes // 1024)
             display_name = att.name
-            if len(display_name) > 30:
+            if _SNAP_FILENAME.fullmatch(display_name):
                 display_name = f"{display_name[:19]}…{display_name[-10:]}"
             lbl = tk.Label(
                 chip,

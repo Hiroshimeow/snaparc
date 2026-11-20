@@ -71,6 +71,28 @@ def test_first_shift_capture_schedules_visible_count():
 
 
 @pytest.mark.parametrize(
+    ("pointer", "work_area", "geometry"),
+    [
+        ((990, 790), (0, 0, 1000, 800), "+935+751"),
+        ((-10, 690), (-900, -100, 0, 700), "+-65+651"),
+        ((200, 300), (0, 0, 1000, 800), "+215+315"),
+    ],
+)
+def test_held_count_stays_inside_pointer_monitor(pointer, work_area, geometry):
+    app = main.ScreenshotApp.__new__(main.ScreenshotApp)
+    app.root = Mock()
+    app.root.winfo_pointerxy.return_value = pointer
+    app.hold_count_window = Mock()
+    app.hold_count_window.winfo_reqwidth.return_value = 40
+    app.hold_count_window.winfo_reqheight.return_value = 24
+
+    with patch.object(main, "get_monitor_work_area", return_value=work_area, create=True):
+        app._update_tooltip_position()
+
+    app.hold_count_window.geometry.assert_called_once_with(geometry)
+
+
+@pytest.mark.parametrize(
     ("second_keys", "receiver"),
     [((), "_start_image_processing"), (("ctrl",), "_show_custom_prompt_for_capture")],
 )
@@ -167,3 +189,23 @@ def test_long_snap_chip_labels_remain_distinct_and_remove_uses_original_path(tmp
         button.call_args_list[1].kwargs["command"]()
 
     assert [att.path for att in popup.attachments] == original_paths[:1]
+
+
+def test_quick_prompt_keeps_full_names_for_user_attachments(tmp_path):
+    names = [f"quarterly-report-2026-{quarter}-final.png" for quarter in ("Q1", "Q2")]
+    paths = [tmp_path / name for name in names]
+    for path in paths:
+        path.touch()
+    popup = QuickPromptPopup(None, None, initial_files=paths)
+    popup.chips_frame = Mock()
+    popup.chips_frame.winfo_children.return_value = []
+
+    with (
+        patch("src.gui.quick_prompt_popup.tk.Frame"),
+        patch("src.gui.quick_prompt_popup.tk.Label") as label,
+        patch("src.gui.quick_prompt_popup.tk.Button"),
+    ):
+        popup._render_attachment_chips()
+
+    for name, call in zip(names, label.call_args_list, strict=True):
+        assert name in call.kwargs["text"]
