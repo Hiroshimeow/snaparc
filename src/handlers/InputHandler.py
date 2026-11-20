@@ -4,6 +4,8 @@ import math
 import sys
 import threading
 import time
+from uuid import uuid4
+
 import keyboard
 from src.platform.win32_mouse import Button, Listener
 
@@ -63,6 +65,7 @@ class InputHandler:
         self.is_capturing = False
         self.right_click_start_time = None
         self.right_click_start_pos = None
+        self._snap_started_with_shift = False
         self.trigger_button = Button.right
         self.left_click_mode_enabled = False
 
@@ -174,6 +177,9 @@ class InputHandler:
             if button == self.trigger_button:
                 self.right_click_start_time = time.time()
                 self.right_click_start_pos = (x, y)
+                self._snap_started_with_shift = (
+                    modifiers["shift"] and not (modifiers["ctrl"] or modifiers["alt"])
+                )
                 self.is_capturing = True
         else:
             if button == self._held_mouse_button:
@@ -220,6 +226,8 @@ class InputHandler:
                         return
 
                     if elapsed >= 0.2 and dist > 50:
+                        if self._snap_started_with_shift and not any(modifiers.values()):
+                            modifiers["shift"] = True
                         is_shift_pressed = modifiers.get("shift", False)
                         print(f"Snap modifiers: {modifiers}")
 
@@ -227,7 +235,7 @@ class InputHandler:
                         top = min(self.right_click_start_pos[1], y)
                         right = max(self.right_click_start_pos[0], x)
                         bottom = max(self.right_click_start_pos[1], y)
-                        ts = time.strftime("%Y%m%d_%H%M%S")
+                        ts = f"{time.strftime('%Y%m%d_%H%M%S')}_{uuid4().hex}"
 
                         threading.Thread(
                             target=self.on_capture,

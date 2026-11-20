@@ -27,9 +27,6 @@ import tkinter as tk
 from tkinter import filedialog, ttk
 from typing import Any, Callable, Dict, List, Optional
 
-from PIL import Image
-
-
 IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif"}
 TEXT_EXTENSIONS = {
     ".txt", ".md", ".markdown", ".py", ".js", ".ts", ".tsx", ".jsx",
@@ -252,12 +249,6 @@ class QuickPromptPopup:
         if any(existing.path == att.path for existing in self.attachments):
             return att
         self.attachments.append(att)
-        if att.kind == "image":
-            try:
-                with Image.open(att.path) as im:
-                    self.images.append(im.copy())
-            except Exception:
-                pass
         if refresh_ui:
             self._render_attachment_chips()
         return att
@@ -297,10 +288,11 @@ class QuickPromptPopup:
         # Header Row
         header_frame = ttk.Frame(container)
         header_frame.grid(row=0, column=0, columnspan=2, sticky="ew", pady=(0, 8))
+        image_count = len(self.images) + sum(att.kind == "image" for att in self.attachments)
         header_Text = (
             "🗂️ Quick Text & File Prompt (Alt+Snap)"
             if self.mode == "text_file"
-            else f"🖼️ Quick Multimodal Prompt (Ctrl+Snap • {len(self.images)} image(s))"
+            else f"🖼️ Quick Multimodal Prompt (Ctrl+Snap • {image_count} image(s))"
         )
         title_lbl = ttk.Label(
             header_frame,
@@ -480,9 +472,12 @@ class QuickPromptPopup:
             chip.pack(side=tk.LEFT, padx=(0, 6), pady=(2, 2))
             icon = "🖼️" if att.kind == "image" else ("📄" if att.kind == "pdf" else "📎")
             kb = max(1, att.size_bytes // 1024)
+            display_name = att.name
+            if len(display_name) > 30:
+                display_name = f"{display_name[:19]}…{display_name[-10:]}"
             lbl = tk.Label(
                 chip,
-                text=f"{icon} {att.name} ({kb} KB)",
+                text=f"{icon} {display_name} ({kb} KB)",
                 bg="#2b3b4b",
                 fg="#f0e6d2",
                 font=("Segoe UI", 8),

@@ -786,7 +786,7 @@ class ScreenshotApp:
                 self._capture_queue.task_done()
 
     def _show_hold_count_tooltip(self, count):
-        if count <= 1:
+        if count < 1:
             self._hide_hold_count_tooltip()
             return
 
