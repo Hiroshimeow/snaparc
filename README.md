@@ -13,8 +13,9 @@ optional workflow, not the product identity.
 ## Main workflows
 
 - Capture a screen region and use it as context for a question or translation.
-- Collect captures with `Shift + Snap`; open Quick Prompt with `Ctrl + Snap`
-  or `Alt + Snap`.
+- Collect captures with `Shift + Snap` by holding Shift at the start or end of
+  the drag. The counter confirms each held image. Use a normal snap to process
+  the stack, or `Ctrl + Snap` / `Alt + Snap` to open Quick Prompt.
 - Open the radial plugin menu with `Ctrl + Alt + Hold`.
 - Open Screenshot Chat with `Ctrl + Shift + Alt + X`.
 - Record audio and use configured transcription/read-aloud providers.
